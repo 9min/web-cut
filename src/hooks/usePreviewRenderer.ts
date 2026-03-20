@@ -1,0 +1,209 @@
+import {
+	type Application,
+	Assets,
+	Container,
+	Graphics,
+	Sprite,
+	Texture,
+	VideoSource,
+} from "pixi.js";
+import { useEffect, useRef } from "react";
+import { useMediaStore } from "@/stores/useMediaStore";
+import { usePlaybackStore } from "@/stores/usePlaybackStore";
+import { useProjectStore } from "@/stores/useProjectStore";
+import { useTimelineStore } from "@/stores/useTimelineStore";
+import { getVisibleClipsAtTime } from "@/utils/previewUtils";
+
+interface SpriteEntry {
+	sprite: Sprite;
+	video: HTMLVideoElement | null;
+}
+
+export function usePreviewRenderer(
+	appRef: React.RefObject<Application | null>,
+	ready: boolean,
+): void {
+	const entriesRef = useRef<Map<string, SpriteEntry>>(new Map());
+	const loadingRef = useRef<Set<string>>(new Set());
+	const stageContainerRef = useRef<Container | null>(null);
+	const bgRef = useRef<Graphics | null>(null);
+
+	useEffect(() => {
+		if (!ready || !appRef.current) return;
+
+		const container = new Container();
+		stageContainerRef.current = container;
+		appRef.current.stage.addChild(container);
+
+		return () => {
+			for (const entry of entriesRef.current.values()) {
+				entry.sprite.destroy(true);
+				if (entry.video) {
+					entry.video.pause();
+					entry.video.src = "";
+				}
+			}
+			entriesRef.current.clear();
+			loadingRef.current.clear();
+
+			if (stageContainerRef.current) {
+				stageContainerRef.current.destroy({ children: true });
+				stageContainerRef.current = null;
+			}
+			bgRef.current = null;
+		};
+	}, [appRef, ready]);
+
+	useEffect(() => {
+		if (!ready || !appRef.current) return;
+
+		const app = appRef.current;
+		let rafId = 0;
+
+		const tick = () => {
+			rafId = requestAnimationFrame(tick);
+
+			const container = stageContainerRef.current;
+			if (!container) return;
+
+			const tracks = useTimelineStore.getState().tracks;
+			const currentTime = usePlaybackStore.getState().currentTime;
+			const { width: pw, height: ph } = useProjectStore.getState();
+			const visible = getVisibleClipsAtTime(tracks, currentTime);
+
+			const scale = Math.min(app.screen.width / pw, app.screen.height / ph);
+			container.x = (app.screen.width - pw * scale) / 2;
+			container.y = (app.screen.height - ph * scale) / 2;
+			container.scale.set(scale);
+
+			if (!bgRef.current) {
+				bgRef.current = new Graphics();
+				container.addChild(bgRef.current);
+			}
+			bgRef.current.clear();
+			bgRef.current.rect(0, 0, pw, ph).fill({ color: 0x000000 });
+
+			const activeIds = new Set<string>();
+
+			for (const vc of visible) {
+				activeIds.add(vc.clip.id);
+
+				const entry = entriesRef.current.get(vc.clip.id);
+				if (!entry) {
+					ensureLoaded(vc.clip.id, vc.clip.assetId, container);
+					continue;
+				}
+
+				entry.sprite.visible = true;
+				fit(entry.sprite, pw, ph);
+
+				if (entry.video) {
+					syncVideo(entry.video, vc.localTime);
+				}
+			}
+
+			for (const [id, entry] of entriesRef.current) {
+				if (!activeIds.has(id)) {
+					entry.sprite.visible = false;
+					if (entry.video && !entry.video.paused) entry.video.pause();
+				}
+			}
+		};
+
+		const ensureLoaded = (clipId: string, assetId: string, container: Container) => {
+			if (loadingRef.current.has(clipId)) return;
+			loadingRef.current.add(clipId);
+
+			const asset = useMediaStore.getState().assets.find((a) => a.id === assetId);
+			if (!asset) {
+				loadingRef.current.delete(clipId);
+				return;
+			}
+
+			if (asset.type === "video") {
+				const video = document.createElement("video");
+				video.src = asset.objectUrl;
+				video.playsInline = true;
+				video.muted = false;
+				video.preload = "auto";
+
+				video.addEventListener(
+					"loadeddata",
+					() => {
+						if (!stageContainerRef.current) return;
+
+						const source = new VideoSource({
+							resource: video,
+							autoPlay: false,
+							width: video.videoWidth,
+							height: video.videoHeight,
+						});
+						const texture = new Texture({ source });
+						const sprite = new Sprite(texture);
+						container.addChild(sprite);
+
+						entriesRef.current.set(clipId, { sprite, video });
+						loadingRef.current.delete(clipId);
+					},
+					{ once: true },
+				);
+
+				video.addEventListener(
+					"error",
+					() => {
+						loadingRef.current.delete(clipId);
+					},
+					{ once: true },
+				);
+
+				video.load();
+				return;
+			}
+
+			if (asset.type === "image") {
+				Assets.load<Texture>(asset.objectUrl)
+					.then((texture) => {
+						if (!stageContainerRef.current) return;
+
+						const sprite = new Sprite(texture);
+						container.addChild(sprite);
+
+						entriesRef.current.set(clipId, { sprite, video: null });
+						loadingRef.current.delete(clipId);
+					})
+					.catch(() => {
+						loadingRef.current.delete(clipId);
+					});
+				return;
+			}
+
+			loadingRef.current.delete(clipId);
+		};
+
+		const syncVideo = (video: HTMLVideoElement, targetTime: number) => {
+			if (Math.abs(video.currentTime - targetTime) > 0.15) {
+				video.currentTime = targetTime;
+			}
+			const playing = usePlaybackStore.getState().isPlaying;
+			if (playing && video.paused) {
+				video.play().catch(() => {});
+			} else if (!playing && !video.paused) {
+				video.pause();
+			}
+		};
+
+		const fit = (sprite: Sprite, pw: number, ph: number) => {
+			const tw = sprite.texture.width;
+			const th = sprite.texture.height;
+			if (tw === 0 || th === 0) return;
+			const s = Math.min(pw / tw, ph / th);
+			sprite.width = tw * s;
+			sprite.height = th * s;
+			sprite.x = (pw - sprite.width) / 2;
+			sprite.y = (ph - sprite.height) / 2;
+		};
+
+		rafId = requestAnimationFrame(tick);
+		return () => cancelAnimationFrame(rafId);
+	}, [appRef, ready]);
+}
