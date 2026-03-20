@@ -1,4 +1,5 @@
 import { Minus, Plus, Scissors, Trash2 } from "lucide-react";
+import { DEFAULT_ZOOM } from "@/constants/timeline";
 
 interface TimelineToolbarProps {
 	onAddTrack: () => void;
@@ -60,7 +61,9 @@ export function TimelineToolbar({
 				>
 					<Minus size={14} />
 				</button>
-				<span className="w-10 text-center text-xs text-gray-400">{zoom}%</span>
+				<span className="w-10 text-center text-xs text-gray-400">
+					{Math.round((zoom / DEFAULT_ZOOM) * 100)}%
+				</span>
 				<button
 					type="button"
 					onClick={onZoomIn}

@@ -21,16 +21,16 @@ describe("useHistoryStore", () => {
 	});
 
 	it("undo로 이전 상태를 복원한다", () => {
-		// 초기 상태 저장
+		// 초기 상태 저장 (기본 트랙 1개)
 		useHistoryStore.getState().pushSnapshot();
 
 		// 트랙 추가
 		useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
-		expect(useTimelineStore.getState().tracks).toHaveLength(1);
+		expect(useTimelineStore.getState().tracks).toHaveLength(2);
 
-		// undo → 트랙이 없어야 함
+		// undo → 기본 트랙 1개로 복원
 		useHistoryStore.getState().undo();
-		expect(useTimelineStore.getState().tracks).toHaveLength(0);
+		expect(useTimelineStore.getState().tracks).toHaveLength(1);
 	});
 
 	it("redo로 undo한 상태를 다시 적용한다", () => {
@@ -38,13 +38,13 @@ describe("useHistoryStore", () => {
 		useHistoryStore.getState().pushSnapshot();
 		useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
 
-		// undo → 트랙 없는 상태로 복원
+		// undo → 기본 트랙 1개로 복원
 		useHistoryStore.getState().undo();
-		expect(useTimelineStore.getState().tracks).toHaveLength(0);
-
-		// redo → 트랙 있는 상태로 복원
-		useHistoryStore.getState().redo();
 		expect(useTimelineStore.getState().tracks).toHaveLength(1);
+
+		// redo → 트랙 2개로 복원
+		useHistoryStore.getState().redo();
+		expect(useTimelineStore.getState().tracks).toHaveLength(2);
 	});
 
 	it("새 변경을 하면 redo 스택이 초기화된다", () => {

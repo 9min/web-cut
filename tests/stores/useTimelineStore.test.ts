@@ -5,11 +5,15 @@ import { createTestClip, createTestTrack } from "../factories/timelineFactory";
 describe("useTimelineStore", () => {
 	beforeEach(() => {
 		useTimelineStore.getState().reset();
+		// 테스트에서는 기본 트랙 없이 시작
+		useTimelineStore.setState({ tracks: [] });
 	});
 
-	it("초기 상태는 빈 트랙 목록이다", () => {
+	it("reset 후 기본 비디오 트랙이 1개 존재한다", () => {
+		useTimelineStore.getState().reset();
 		const state = useTimelineStore.getState();
-		expect(state.tracks).toEqual([]);
+		expect(state.tracks).toHaveLength(1);
+		expect(state.tracks[0]?.type).toBe("video");
 		expect(state.selectedClipId).toBeNull();
 	});
 
@@ -215,7 +219,7 @@ describe("useTimelineStore", () => {
 			useTimelineStore.getState().reset();
 
 			const state = useTimelineStore.getState();
-			expect(state.tracks).toEqual([]);
+			expect(state.tracks).toHaveLength(1); // 기본 트랙 1개
 			expect(state.selectedClipId).toBeNull();
 		});
 	});

@@ -23,8 +23,18 @@ interface TimelineState {
 	reset: () => void;
 }
 
+const DEFAULT_TRACK: Track = {
+	id: "default-video-track",
+	name: "비디오 1",
+	type: "video",
+	clips: [],
+	muted: false,
+	locked: false,
+	order: 0,
+};
+
 const initialState = {
-	tracks: [] as Track[],
+	tracks: [DEFAULT_TRACK] as Track[],
 	selectedClipId: null as string | null,
 };
 

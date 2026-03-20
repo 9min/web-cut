@@ -1,4 +1,4 @@
-export const DEFAULT_ZOOM = 100;
+export const DEFAULT_ZOOM = 60;
 export const MIN_ZOOM = 10;
 export const MAX_ZOOM = 500;
 export const SNAP_THRESHOLD_PX = 8;
