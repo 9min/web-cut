@@ -33,7 +33,7 @@ export function usePlayback(): void {
 			lastTimeRef.current = timestamp;
 			const newTime = currentTime + delta;
 
-			if (newTime >= duration) {
+			if (duration > 0 && newTime >= duration) {
 				seek(duration);
 				pause();
 				return;
