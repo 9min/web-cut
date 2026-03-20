@@ -27,7 +27,8 @@ export const usePlaybackStore = create<PlaybackState>((set, get) => ({
 
 	seek: (time) => {
 		const { duration } = get();
-		set({ currentTime: Math.max(0, Math.min(time, duration)) });
+		const maxTime = duration > 0 ? duration : Number.MAX_SAFE_INTEGER;
+		set({ currentTime: Math.max(0, Math.min(time, maxTime)) });
 	},
 
 	setDuration: (duration) => set({ duration }),
