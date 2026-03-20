@@ -1,4 +1,6 @@
+import { useDraggable } from "@dnd-kit/core";
 import { X } from "lucide-react";
+import { DND_TYPES } from "@/types/dnd";
 import type { MediaAsset } from "@/types/media";
 import { formatDuration } from "@/utils/formatDuration";
 import { formatFileSize } from "@/utils/formatFileSize";
@@ -29,9 +31,18 @@ function getTypeIcon(type: MediaAsset["type"]): string {
 
 export function MediaItem({ asset, onRemove }: MediaItemProps) {
 	const duration = getDurationText(asset);
+	const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+		id: `media-${asset.id}`,
+		data: { type: DND_TYPES.MEDIA_ITEM, assetId: asset.id },
+	});
 
 	return (
-		<div className="flex items-center gap-2 rounded p-2 hover:bg-gray-800">
+		<div
+			ref={setNodeRef}
+			{...listeners}
+			{...attributes}
+			className={`flex items-center gap-2 rounded p-2 hover:bg-gray-800 ${isDragging ? "opacity-50" : ""}`}
+		>
 			<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-gray-700">
 				{asset.thumbnailUrl ? (
 					<img
