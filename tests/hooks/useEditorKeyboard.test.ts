@@ -8,6 +8,7 @@ import { createTestClip, createTestTrack } from "../factories/timelineFactory";
 describe("useEditorKeyboard", () => {
 	beforeEach(() => {
 		useTimelineStore.getState().reset();
+		useTimelineStore.setState({ tracks: [] });
 		usePlaybackStore.getState().reset();
 	});
 

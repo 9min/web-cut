@@ -16,15 +16,15 @@ describe("Timeline", () => {
 		expect(screen.getByTestId("timeline")).toBeInTheDocument();
 	});
 
-	it("트랙이 없으면 빈 상태 메시지를 표시한다", () => {
-		render(<Timeline />);
-		expect(screen.getByText(/트랙을 추가/)).toBeInTheDocument();
-	});
-
-	it("트랙이 있으면 트랙 목록을 표시한다", () => {
-		useTimelineStore.getState().addTrack(createTestTrack({ name: "비디오 1" }));
+	it("초기 상태에 기본 트랙이 표시된다", () => {
 		render(<Timeline />);
 		expect(screen.getByText("비디오 1")).toBeInTheDocument();
+	});
+
+	it("트랙을 추가하면 목록에 표시된다", () => {
+		useTimelineStore.getState().addTrack(createTestTrack({ name: "오디오 1" }));
+		render(<Timeline />);
+		expect(screen.getByText("오디오 1")).toBeInTheDocument();
 	});
 
 	it("재생 컨트롤을 표시한다", () => {

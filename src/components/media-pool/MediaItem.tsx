@@ -41,7 +41,7 @@ export function MediaItem({ asset, onRemove }: MediaItemProps) {
 			ref={setNodeRef}
 			{...listeners}
 			{...attributes}
-			className={`flex items-center gap-2 rounded p-2 hover:bg-gray-800 ${isDragging ? "opacity-50" : ""}`}
+			className={`flex cursor-grab items-center gap-2 rounded p-2 hover:bg-gray-800 active:cursor-grabbing ${isDragging ? "opacity-50" : ""}`}
 		>
 			<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-gray-700">
 				{asset.thumbnailUrl ? (

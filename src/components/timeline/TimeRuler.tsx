@@ -18,15 +18,39 @@ function getTickInterval(zoom: number): number {
 export function TimeRuler({ zoom, duration, onSeek, scrollLeft }: TimeRulerProps) {
 	const ref = useRef<HTMLDivElement>(null);
 
-	const handleClick = useCallback(
-		(e: React.MouseEvent) => {
-			if (!ref.current) return;
+	const getTimeFromEvent = useCallback(
+		(clientX: number) => {
+			if (!ref.current) return 0;
 			const rect = ref.current.getBoundingClientRect();
-			const x = e.clientX - rect.left + scrollLeft;
-			onSeek(pixelToTime(x, zoom));
+			const x = clientX - rect.left + scrollLeft;
+			return pixelToTime(Math.max(0, x), zoom);
 		},
-		[zoom, onSeek, scrollLeft],
+		[zoom, scrollLeft],
 	);
+
+	const handlePointerDown = useCallback(
+		(e: React.PointerEvent) => {
+			if (!ref.current) return;
+			e.preventDefault();
+			ref.current.setPointerCapture(e.pointerId);
+			onSeek(getTimeFromEvent(e.clientX));
+		},
+		[onSeek, getTimeFromEvent],
+	);
+
+	const handlePointerMove = useCallback(
+		(e: React.PointerEvent) => {
+			if (!ref.current?.hasPointerCapture(e.pointerId)) return;
+			onSeek(getTimeFromEvent(e.clientX));
+		},
+		[onSeek, getTimeFromEvent],
+	);
+
+	const handlePointerUp = useCallback((e: React.PointerEvent) => {
+		if (ref.current?.hasPointerCapture(e.pointerId)) {
+			ref.current.releasePointerCapture(e.pointerId);
+		}
+	}, []);
 
 	const totalWidth = timeToPixel(Math.max(duration, 30), zoom);
 	const interval = getTickInterval(zoom);
@@ -42,7 +66,9 @@ export function TimeRuler({ zoom, duration, onSeek, scrollLeft }: TimeRulerProps
 			aria-valuenow={0}
 			className="relative cursor-pointer select-none border-b border-gray-700"
 			style={{ height: TIME_RULER_HEIGHT, width: totalWidth }}
-			onClick={handleClick}
+			onPointerDown={handlePointerDown}
+			onPointerMove={handlePointerMove}
+			onPointerUp={handlePointerUp}
 			onKeyDown={(e) => {
 				if (e.key === "ArrowRight") onSeek(pixelToTime(10 + scrollLeft, zoom));
 				if (e.key === "ArrowLeft") onSeek(pixelToTime(Math.max(0, scrollLeft - 10), zoom));
