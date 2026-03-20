@@ -99,6 +99,7 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
 					? { ...t, clips: [...t.clips.filter((c) => c.id !== clipId), left, right] }
 					: t,
 			),
+			selectedClipId: left.id,
 		}));
 	},
 
