@@ -120,6 +120,64 @@ describe("useTimelineStore", () => {
 		});
 	});
 
+	describe("splitClip", () => {
+		it("클립을 플레이헤드 위치에서 분할한다", () => {
+			useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
+			useTimelineStore.getState().addClip(
+				"t1",
+				createTestClip({
+					id: "c1",
+					trackId: "t1",
+					startTime: 0,
+					duration: 10,
+					inPoint: 0,
+					outPoint: 10,
+				}),
+			);
+
+			useTimelineStore.getState().splitClip("t1", "c1", 5);
+
+			const clips = useTimelineStore.getState().tracks[0]?.clips;
+			expect(clips).toHaveLength(2);
+			expect(clips?.[0]?.duration).toBe(5);
+			expect(clips?.[1]?.startTime).toBe(5);
+			expect(clips?.[1]?.duration).toBe(5);
+		});
+
+		it("분할 불가능한 위치에서는 무시한다", () => {
+			useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "c1", trackId: "t1", startTime: 0, duration: 10 }));
+
+			useTimelineStore.getState().splitClip("t1", "c1", 15);
+			expect(useTimelineStore.getState().tracks[0]?.clips).toHaveLength(1);
+		});
+	});
+
+	describe("trimClip", () => {
+		it("클립을 트림한다", () => {
+			useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
+			useTimelineStore.getState().addClip(
+				"t1",
+				createTestClip({
+					id: "c1",
+					trackId: "t1",
+					startTime: 0,
+					duration: 10,
+					inPoint: 0,
+					outPoint: 10,
+				}),
+			);
+
+			useTimelineStore.getState().trimClipAction("t1", "c1", 2, 8);
+
+			const clip = useTimelineStore.getState().tracks[0]?.clips[0];
+			expect(clip?.startTime).toBe(2);
+			expect(clip?.duration).toBe(6);
+		});
+	});
+
 	describe("reset", () => {
 		it("모든 상태를 초기화한다", () => {
 			useTimelineStore.getState().addTrack(createTestTrack());

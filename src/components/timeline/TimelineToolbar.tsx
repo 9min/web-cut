@@ -1,13 +1,26 @@
-import { Minus, Plus } from "lucide-react";
+import { Minus, Plus, Scissors, Trash2 } from "lucide-react";
 
 interface TimelineToolbarProps {
 	onAddTrack: () => void;
 	onZoomIn: () => void;
 	onZoomOut: () => void;
+	onSplit: () => void;
+	onDelete: () => void;
 	zoom: number;
+	canSplit: boolean;
+	canDelete: boolean;
 }
 
-export function TimelineToolbar({ onAddTrack, onZoomIn, onZoomOut, zoom }: TimelineToolbarProps) {
+export function TimelineToolbar({
+	onAddTrack,
+	onZoomIn,
+	onZoomOut,
+	onSplit,
+	onDelete,
+	zoom,
+	canSplit,
+	canDelete,
+}: TimelineToolbarProps) {
 	return (
 		<div className="flex items-center gap-2">
 			<button
@@ -18,7 +31,27 @@ export function TimelineToolbar({ onAddTrack, onZoomIn, onZoomOut, zoom }: Timel
 			>
 				+ 트랙 추가
 			</button>
-			<div className="flex items-center gap-1">
+			<div className="flex items-center gap-1 border-l border-gray-700 pl-2">
+				<button
+					type="button"
+					onClick={onSplit}
+					disabled={!canSplit}
+					className="rounded p-1 text-gray-400 hover:bg-gray-700 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400"
+					aria-label="분할"
+				>
+					<Scissors size={14} />
+				</button>
+				<button
+					type="button"
+					onClick={onDelete}
+					disabled={!canDelete}
+					className="rounded p-1 text-gray-400 hover:bg-gray-700 hover:text-red-400 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400"
+					aria-label="삭제"
+				>
+					<Trash2 size={14} />
+				</button>
+			</div>
+			<div className="flex items-center gap-1 border-l border-gray-700 pl-2">
 				<button
 					type="button"
 					onClick={onZoomOut}

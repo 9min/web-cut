@@ -1,4 +1,4 @@
-import { DndContext } from "@dnd-kit/core";
+import { DndContext, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { EditorLayout } from "@/components/layout/EditorLayout";
 import { Header } from "@/components/layout/Header";
 import { MediaPool } from "@/components/media-pool/MediaPool";
@@ -7,9 +7,14 @@ import { useTimelineDragDrop } from "@/hooks/useTimelineDragDrop";
 
 export function App() {
 	const { handleDragEnd } = useTimelineDragDrop();
+	const sensors = useSensors(
+		useSensor(PointerSensor, {
+			activationConstraint: { distance: 5 },
+		}),
+	);
 
 	return (
-		<DndContext onDragEnd={handleDragEnd}>
+		<DndContext sensors={sensors} onDragEnd={handleDragEnd}>
 			<EditorLayout
 				header={<Header />}
 				sidebar={<MediaPool />}

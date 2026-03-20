@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import type { Clip, Track } from "@/types/timeline";
+import { splitClipAt, trimClip } from "@/utils/editUtils";
+import { generateId } from "@/utils/generateId";
 
 interface TimelineState {
 	tracks: Track[];
@@ -9,6 +11,13 @@ interface TimelineState {
 	addClip: (trackId: string, clip: Clip) => void;
 	removeClip: (trackId: string, clipId: string) => void;
 	moveClip: (fromTrackId: string, clipId: string, toTrackId: string, newStartTime: number) => void;
+	splitClip: (trackId: string, clipId: string, splitTime: number) => void;
+	trimClipAction: (
+		trackId: string,
+		clipId: string,
+		newStartTime: number,
+		newEndTime: number,
+	) => void;
 	selectClip: (clipId: string | null) => void;
 	reset: () => void;
 }
@@ -73,6 +82,37 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
 				}),
 			}));
 		}
+	},
+
+	splitClip: (trackId, clipId, splitTime) => {
+		const track = get().tracks.find((t) => t.id === trackId);
+		const clip = track?.clips.find((c) => c.id === clipId);
+		if (!clip) return;
+
+		const result = splitClipAt(clip, splitTime, generateId(), generateId());
+		if (!result) return;
+
+		const [left, right] = result;
+		set((state) => ({
+			tracks: state.tracks.map((t) =>
+				t.id === trackId
+					? { ...t, clips: [...t.clips.filter((c) => c.id !== clipId), left, right] }
+					: t,
+			),
+		}));
+	},
+
+	trimClipAction: (trackId, clipId, newStartTime, newEndTime) => {
+		const track = get().tracks.find((t) => t.id === trackId);
+		const clip = track?.clips.find((c) => c.id === clipId);
+		if (!clip) return;
+
+		const trimmed = trimClip(clip, newStartTime, newEndTime);
+		set((state) => ({
+			tracks: state.tracks.map((t) =>
+				t.id === trackId ? { ...t, clips: t.clips.map((c) => (c.id === clipId ? trimmed : c)) } : t,
+			),
+		}));
 	},
 
 	selectClip: (clipId) => set({ selectedClipId: clipId }),
