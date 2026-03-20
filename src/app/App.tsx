@@ -1,12 +1,22 @@
+import { EditorLayout } from "@/components/layout/EditorLayout";
+import { Header } from "@/components/layout/Header";
+import { MediaPool } from "@/components/media-pool/MediaPool";
+
 export function App() {
 	return (
-		<div className="flex h-screen w-screen flex-col">
-			<header className="flex h-12 items-center border-b border-gray-800 px-4">
-				<h1 className="text-lg font-semibold">WebCut</h1>
-			</header>
-			<main className="flex flex-1 overflow-hidden">
-				<p className="m-auto text-gray-500">편집기 준비 중...</p>
-			</main>
-		</div>
+		<EditorLayout
+			header={<Header />}
+			sidebar={<MediaPool />}
+			preview={
+				<div className="flex h-full items-center justify-center">
+					<p className="text-gray-500">프리뷰 영역</p>
+				</div>
+			}
+			timeline={
+				<div className="flex h-full items-center justify-center">
+					<p className="text-gray-500">타임라인 영역</p>
+				</div>
+			}
+		/>
 	);
 }
