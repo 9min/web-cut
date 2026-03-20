@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { MediaAsset } from "@/types/media";
+import { useTimelineStore } from "./useTimelineStore";
 
 interface MediaState {
 	assets: MediaAsset[];
@@ -22,6 +23,7 @@ export const useMediaStore = create<MediaState>((set, get) => ({
 				URL.revokeObjectURL(asset.thumbnailUrl);
 			}
 		}
+		useTimelineStore.getState().removeClipsByAssetId(id);
 		set((state) => ({ assets: state.assets.filter((a) => a.id !== id) }));
 	},
 

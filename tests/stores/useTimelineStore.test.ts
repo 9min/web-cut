@@ -178,6 +178,36 @@ describe("useTimelineStore", () => {
 		});
 	});
 
+	describe("removeClipsByAssetId", () => {
+		it("특정 에셋을 참조하는 모든 클립을 제거한다", () => {
+			useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "c1", trackId: "t1", assetId: "a1" }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "c2", trackId: "t1", assetId: "a2" }));
+
+			useTimelineStore.getState().removeClipsByAssetId("a1");
+
+			const clips = useTimelineStore.getState().tracks[0]?.clips;
+			expect(clips).toHaveLength(1);
+			expect(clips?.[0]?.assetId).toBe("a2");
+		});
+
+		it("선택된 클립이 제거되면 selectedClipId를 null로 리셋한다", () => {
+			useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "c1", trackId: "t1", assetId: "a1" }));
+			useTimelineStore.getState().selectClip("c1");
+
+			useTimelineStore.getState().removeClipsByAssetId("a1");
+
+			expect(useTimelineStore.getState().selectedClipId).toBeNull();
+		});
+	});
+
 	describe("reset", () => {
 		it("모든 상태를 초기화한다", () => {
 			useTimelineStore.getState().addTrack(createTestTrack());

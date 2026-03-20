@@ -18,6 +18,7 @@ interface TimelineState {
 		newStartTime: number,
 		newEndTime: number,
 	) => void;
+	removeClipsByAssetId: (assetId: string) => void;
 	selectClip: (clipId: string | null) => void;
 	reset: () => void;
 }
@@ -114,6 +115,27 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
 				t.id === trackId ? { ...t, clips: t.clips.map((c) => (c.id === clipId ? trimmed : c)) } : t,
 			),
 		}));
+	},
+
+	removeClipsByAssetId: (assetId) => {
+		const { selectedClipId } = get();
+		let shouldClearSelection = false;
+
+		const newTracks = get().tracks.map((t) => {
+			const filtered = t.clips.filter((c) => {
+				if (c.assetId === assetId) {
+					if (c.id === selectedClipId) shouldClearSelection = true;
+					return false;
+				}
+				return true;
+			});
+			return filtered.length === t.clips.length ? t : { ...t, clips: filtered };
+		});
+
+		set({
+			tracks: newTracks,
+			selectedClipId: shouldClearSelection ? null : selectedClipId,
+		});
 	},
 
 	selectClip: (clipId) => set({ selectedClipId: clipId }),
