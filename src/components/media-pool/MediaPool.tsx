@@ -16,8 +16,8 @@ export function MediaPool() {
 			{errors.length > 0 && (
 				<div className="rounded bg-red-900/30 p-2">
 					{errors.map((error) => (
-						<p key={error} className="text-xs text-red-400">
-							{error}
+						<p key={error.id} className="text-xs text-red-400">
+							{error.message}
 						</p>
 					))}
 					<button

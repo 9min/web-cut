@@ -43,7 +43,7 @@ describe("useMediaUpload", () => {
 
 		expect(useMediaStore.getState().assets).toHaveLength(0);
 		expect(result.current.errors).toHaveLength(1);
-		expect(result.current.errors[0]).toContain("doc.pdf");
+		expect(result.current.errors[0]?.message).toContain("doc.pdf");
 	});
 
 	it("여러 파일을 업로드할 수 있다", async () => {

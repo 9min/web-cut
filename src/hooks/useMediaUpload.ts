@@ -12,25 +12,33 @@ function getMediaType(mimeType: string): MediaType {
 	return "image";
 }
 
+export interface UploadError {
+	id: string;
+	message: string;
+}
+
 interface UseMediaUploadReturn {
 	uploadFiles: (files: File[]) => Promise<void>;
-	errors: string[];
+	errors: UploadError[];
 	clearErrors: () => void;
 }
 
 export function useMediaUpload(): UseMediaUploadReturn {
-	const [errors, setErrors] = useState<string[]>([]);
+	const [errors, setErrors] = useState<UploadError[]>([]);
 	const addAsset = useMediaStore((s) => s.addAsset);
 	const updateAsset = useMediaStore((s) => s.updateAsset);
 
 	const uploadFiles = useCallback(
 		async (files: File[]) => {
-			const newErrors: string[] = [];
+			const newErrors: UploadError[] = [];
 
 			for (const file of files) {
 				const validation = validateMediaFile(file);
 				if (!validation.valid) {
-					newErrors.push(`${file.name}: ${validation.error}`);
+					newErrors.push({
+						id: generateId(),
+						message: `${file.name}: ${validation.error}`,
+					});
 					continue;
 				}
 

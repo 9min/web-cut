@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 interface FileDropHandlers {
 	onDragEnter: (e: React.DragEvent) => void;
@@ -14,17 +14,22 @@ interface UseFileDropReturn {
 
 export function useFileDrop(onFileDrop: (files: File[]) => void): UseFileDropReturn {
 	const [isDragOver, setIsDragOver] = useState(false);
+	const enterCountRef = useRef(0);
 
 	const onDragEnter = useCallback((e: React.DragEvent) => {
 		e.preventDefault();
 		e.stopPropagation();
+		enterCountRef.current++;
 		setIsDragOver(true);
 	}, []);
 
 	const onDragLeave = useCallback((e: React.DragEvent) => {
 		e.preventDefault();
 		e.stopPropagation();
-		setIsDragOver(false);
+		enterCountRef.current--;
+		if (enterCountRef.current === 0) {
+			setIsDragOver(false);
+		}
 	}, []);
 
 	const onDragOver = useCallback((e: React.DragEvent) => {
@@ -36,6 +41,7 @@ export function useFileDrop(onFileDrop: (files: File[]) => void): UseFileDropRet
 		(e: React.DragEvent) => {
 			e.preventDefault();
 			e.stopPropagation();
+			enterCountRef.current = 0;
 			setIsDragOver(false);
 			const files = Array.from(e.dataTransfer.files);
 			if (files.length > 0) {
