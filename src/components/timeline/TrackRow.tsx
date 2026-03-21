@@ -1,17 +1,26 @@
 import { useDroppable } from "@dnd-kit/core";
+import type { Ref } from "react";
 import { TRACK_HEIGHT } from "@/constants/timeline";
 import type { Track } from "@/types/timeline";
 import { cn } from "@/utils/cn";
 import { ClipBlock } from "./ClipBlock";
+import { DropIndicator } from "./DropIndicator";
 
 interface TrackRowProps {
 	track: Track;
 	zoom: number;
 	selectedClipId: string | null;
 	onSelectClip: (clipId: string) => void;
+	dropIndicatorRef?: Ref<HTMLDivElement>;
 }
 
-export function TrackRow({ track, zoom, selectedClipId, onSelectClip }: TrackRowProps) {
+export function TrackRow({
+	track,
+	zoom,
+	selectedClipId,
+	onSelectClip,
+	dropIndicatorRef,
+}: TrackRowProps) {
 	const { setNodeRef, isOver } = useDroppable({
 		id: `track-${track.id}`,
 		data: { trackId: track.id },
@@ -36,6 +45,7 @@ export function TrackRow({ track, zoom, selectedClipId, onSelectClip }: TrackRow
 						onSelect={onSelectClip}
 					/>
 				))}
+				<DropIndicator ref={dropIndicatorRef} />
 			</div>
 		</div>
 	);

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useEditorKeyboard } from "@/hooks/useEditorKeyboard";
 import { usePlayback } from "@/hooks/usePlayback";
-import { useTimelineZoom } from "@/hooks/useTimelineZoom";
 import { useHistoryStore } from "@/stores/useHistoryStore";
 import { usePlaybackStore } from "@/stores/usePlaybackStore";
 import { useTimelineStore } from "@/stores/useTimelineStore";
+import { useZoomStore } from "@/stores/useZoomStore";
 import type { TrackType } from "@/types/timeline";
+import { dropIndicatorMap } from "@/utils/dropIndicatorRefs";
 import { generateId } from "@/utils/generateId";
 import { getTimelineDuration, timeToPixel } from "@/utils/timelineUtils";
 import { PlaybackControls } from "./PlaybackControls";
@@ -25,7 +26,9 @@ export function Timeline() {
 	const seek = usePlaybackStore((s) => s.seek);
 	const setDuration = usePlaybackStore((s) => s.setDuration);
 	const pushSnapshot = useHistoryStore((s) => s.pushSnapshot);
-	const { zoom, zoomIn, zoomOut } = useTimelineZoom();
+	const zoom = useZoomStore((s) => s.zoom);
+	const zoomIn = useZoomStore((s) => s.zoomIn);
+	const zoomOut = useZoomStore((s) => s.zoomOut);
 	const [scrollLeft, setScrollLeft] = useState(0);
 	const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -119,6 +122,13 @@ export function Timeline() {
 								zoom={zoom}
 								selectedClipId={selectedClipId}
 								onSelectClip={selectClip}
+								dropIndicatorRef={(el) => {
+									if (el) {
+										dropIndicatorMap.set(track.id, el);
+									} else {
+										dropIndicatorMap.delete(track.id);
+									}
+								}}
 							/>
 						))}
 					</div>

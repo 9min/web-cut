@@ -223,4 +223,210 @@ describe("useTimelineStore", () => {
 			expect(state.selectedClipId).toBeNull();
 		});
 	});
+
+	describe("insertClipAt", () => {
+		it("C를 시간 0으로 드래그하면 C(0-5) A(5-10) B(10-15)가 된다", () => {
+			useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
+			// A(0-5) B(5-10) C(10-15)
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "A", trackId: "t1", startTime: 0, duration: 5 }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "B", trackId: "t1", startTime: 5, duration: 5 }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "C", trackId: "t1", startTime: 10, duration: 5 }));
+
+			useTimelineStore.getState().insertClipAt("t1", "C", "t1", 0);
+
+			const clips = useTimelineStore.getState().tracks[0]?.clips;
+			const clipA = clips?.find((c) => c.id === "A");
+			const clipB = clips?.find((c) => c.id === "B");
+			const clipC = clips?.find((c) => c.id === "C");
+			expect(clipC?.startTime).toBe(0);
+			expect(clipA?.startTime).toBe(5);
+			expect(clipB?.startTime).toBe(10);
+		});
+
+		it("B를 시간 0으로 드래그하면 B(0-5) A(5-10) C(10-15)가 된다", () => {
+			useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "A", trackId: "t1", startTime: 0, duration: 5 }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "B", trackId: "t1", startTime: 5, duration: 5 }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "C", trackId: "t1", startTime: 10, duration: 5 }));
+
+			useTimelineStore.getState().insertClipAt("t1", "B", "t1", 0);
+
+			const clips = useTimelineStore.getState().tracks[0]?.clips;
+			const clipA = clips?.find((c) => c.id === "A");
+			const clipB = clips?.find((c) => c.id === "B");
+			const clipC = clips?.find((c) => c.id === "C");
+			expect(clipB?.startTime).toBe(0);
+			expect(clipA?.startTime).toBe(5);
+			expect(clipC?.startTime).toBe(10);
+		});
+
+		it("C를 시간 3으로 드래그하면 인덱스 기반으로 A,C,B 밀착 배치된다", () => {
+			useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "A", trackId: "t1", startTime: 0, duration: 5 }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "B", trackId: "t1", startTime: 5, duration: 5 }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "C", trackId: "t1", startTime: 10, duration: 5 }));
+
+			// dropTime=3, A midpoint=2.5 → 3>2.5 → index 1, B midpoint=7.5 → 3<7.5 → index 1
+			// 결과: A(0-5), C(5-10), B(10-15)
+			useTimelineStore.getState().insertClipAt("t1", "C", "t1", 3);
+
+			const clips = useTimelineStore.getState().tracks[0]?.clips;
+			const clipA = clips?.find((c) => c.id === "A");
+			const clipB = clips?.find((c) => c.id === "B");
+			const clipC = clips?.find((c) => c.id === "C");
+			expect(clipA?.startTime).toBe(0);
+			expect(clipC?.startTime).toBe(5);
+			expect(clipB?.startTime).toBe(10);
+		});
+
+		it("빈 공간이 있을 때 겹치는 클립만 밀린다", () => {
+			useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
+			// A(0-5) _빈(5-8)_ B(8-13)
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "A", trackId: "t1", startTime: 0, duration: 5 }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "B", trackId: "t1", startTime: 8, duration: 5 }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "C", trackId: "t1", startTime: 15, duration: 5 }));
+
+			// C를 5로 드래그 → C(5-10), B(8-13)와 겹침 → B(10-15)
+			useTimelineStore.getState().insertClipAt("t1", "C", "t1", 5);
+
+			const clips = useTimelineStore.getState().tracks[0]?.clips;
+			const clipA = clips?.find((c) => c.id === "A");
+			const clipB = clips?.find((c) => c.id === "B");
+			const clipC = clips?.find((c) => c.id === "C");
+			expect(clipA?.startTime).toBe(0); // A는 안 밀림
+			expect(clipC?.startTime).toBe(5);
+			expect(clipB?.startTime).toBe(10);
+		});
+
+		it("인덱스 기반이므로 빈 공간 없이 밀착 배치된다", () => {
+			useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "A", trackId: "t1", startTime: 0, duration: 5 }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "B", trackId: "t1", startTime: 20, duration: 5 }));
+
+			// A를 10으로 이동 → otherClips=[B(20-25)], dropTime=10
+			// B midpoint=22.5, 10<22.5 → index 0
+			// 결과: A(0-5), B(5-10)
+			useTimelineStore.getState().insertClipAt("t1", "A", "t1", 10);
+
+			const clips = useTimelineStore.getState().tracks[0]?.clips;
+			const clipA = clips?.find((c) => c.id === "A");
+			const clipB = clips?.find((c) => c.id === "B");
+			expect(clipA?.startTime).toBe(0);
+			expect(clipB?.startTime).toBe(5);
+		});
+
+		it("A,B,C,D에서 D를 B 뒤(5.5)로 드롭하면 빈 공간 없이 밀착된다", () => {
+			useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "A", trackId: "t1", startTime: 0, duration: 3 }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "B", trackId: "t1", startTime: 3, duration: 3 }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "C", trackId: "t1", startTime: 6, duration: 3 }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "D", trackId: "t1", startTime: 9, duration: 3 }));
+
+			// D를 5.5로 드롭 → otherClips=[A(0-3),B(3-6),C(6-9)]
+			// A midpoint=1.5, B midpoint=4.5, C midpoint=7.5
+			// 5.5 > 4.5, 5.5 < 7.5 → index 2
+			// 결과: A(0-3), B(3-6), D(6-9), C(9-12)
+			useTimelineStore.getState().insertClipAt("t1", "D", "t1", 5.5);
+
+			const clips = useTimelineStore.getState().tracks[0]?.clips;
+			const clipA = clips?.find((c) => c.id === "A");
+			const clipB = clips?.find((c) => c.id === "B");
+			const clipC = clips?.find((c) => c.id === "C");
+			const clipD = clips?.find((c) => c.id === "D");
+			expect(clipA?.startTime).toBe(0);
+			expect(clipB?.startTime).toBe(3);
+			expect(clipD?.startTime).toBe(6);
+			expect(clipC?.startTime).toBe(9);
+		});
+
+		it("A,B,C,D에서 D를 A 앞(0.5)으로 드롭하면 D가 맨 앞에 밀착된다", () => {
+			useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "A", trackId: "t1", startTime: 0, duration: 3 }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "B", trackId: "t1", startTime: 3, duration: 3 }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "C", trackId: "t1", startTime: 6, duration: 3 }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "D", trackId: "t1", startTime: 9, duration: 3 }));
+
+			// D를 0.5로 드롭 → otherClips=[A(0-3),B(3-6),C(6-9)]
+			// A midpoint=1.5, 0.5 < 1.5 → index 0
+			// 결과: D(0-3), A(3-6), B(6-9), C(9-12)
+			useTimelineStore.getState().insertClipAt("t1", "D", "t1", 0.5);
+
+			const clips = useTimelineStore.getState().tracks[0]?.clips;
+			const clipA = clips?.find((c) => c.id === "A");
+			const clipB = clips?.find((c) => c.id === "B");
+			const clipC = clips?.find((c) => c.id === "C");
+			const clipD = clips?.find((c) => c.id === "D");
+			expect(clipD?.startTime).toBe(0);
+			expect(clipA?.startTime).toBe(3);
+			expect(clipB?.startTime).toBe(6);
+			expect(clipC?.startTime).toBe(9);
+		});
+
+		it("다른 트랙으로 클립을 삽입 이동한다", () => {
+			useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
+			useTimelineStore.getState().addTrack(createTestTrack({ id: "t2" }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "A", trackId: "t1", startTime: 0, duration: 5 }));
+			useTimelineStore
+				.getState()
+				.addClip("t2", createTestClip({ id: "X", trackId: "t2", startTime: 0, duration: 5 }));
+
+			// A를 t2의 시간 0으로 삽입 → A(0-5), X(5-10)
+			useTimelineStore.getState().insertClipAt("t1", "A", "t2", 0);
+
+			const t1clips = useTimelineStore.getState().tracks[0]?.clips;
+			const t2clips = useTimelineStore.getState().tracks[1]?.clips;
+			expect(t1clips).toHaveLength(0);
+			expect(t2clips).toHaveLength(2);
+			const clipA = t2clips?.find((c) => c.id === "A");
+			const clipX = t2clips?.find((c) => c.id === "X");
+			expect(clipA?.startTime).toBe(0);
+			expect(clipX?.startTime).toBe(5);
+		});
+	});
 });
