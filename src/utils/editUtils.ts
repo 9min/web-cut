@@ -1,4 +1,4 @@
-import { MIN_CLIP_DURATION, SNAP_THRESHOLD_PX } from "@/constants/timeline";
+import { MIN_CLIP_DURATION } from "@/constants/timeline";
 import type { Clip } from "@/types/timeline";
 
 export function splitClipAt(
@@ -57,22 +57,4 @@ export function trimClip(clip: Clip, newStartTime: number, newEndTime: number): 
 		inPoint: clip.inPoint + startDelta,
 		outPoint: clip.inPoint + startDelta + duration,
 	};
-}
-
-export function snapTime(time: number, snapPoints: number[], zoom: number): number {
-	if (snapPoints.length === 0) return time;
-
-	const thresholdTime = SNAP_THRESHOLD_PX / zoom;
-	let closest = time;
-	let minDist = thresholdTime;
-
-	for (const point of snapPoints) {
-		const dist = Math.abs(time - point);
-		if (dist < minDist) {
-			minDist = dist;
-			closest = point;
-		}
-	}
-
-	return closest;
 }

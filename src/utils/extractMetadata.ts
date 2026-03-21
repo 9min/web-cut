@@ -7,6 +7,7 @@ import type {
 } from "@/types/media";
 
 const DEFAULT_FPS = 30;
+const METADATA_TIMEOUT_MS = 10_000;
 
 export function extractMetadata(file: File, type: MediaType): Promise<MediaMetadata | null> {
 	switch (type) {
@@ -24,9 +25,22 @@ function extractVideoMetadata(file: File): Promise<VideoMetadata | null> {
 		const video = document.createElement("video");
 		const url = URL.createObjectURL(file);
 		video.src = url;
+		let settled = false;
+
+		const cleanup = () => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timer);
+			URL.revokeObjectURL(url);
+		};
+
+		const timer = setTimeout(() => {
+			cleanup();
+			resolve(null);
+		}, METADATA_TIMEOUT_MS);
 
 		video.onloadedmetadata = () => {
-			URL.revokeObjectURL(url);
+			cleanup();
 			resolve({
 				width: video.videoWidth,
 				height: video.videoHeight,
@@ -36,7 +50,7 @@ function extractVideoMetadata(file: File): Promise<VideoMetadata | null> {
 		};
 
 		video.onerror = () => {
-			URL.revokeObjectURL(url);
+			cleanup();
 			resolve(null);
 		};
 
@@ -49,9 +63,22 @@ function extractAudioMetadata(file: File): Promise<AudioMetadata | null> {
 		const audio = document.createElement("audio");
 		const url = URL.createObjectURL(file);
 		audio.src = url;
+		let settled = false;
+
+		const cleanup = () => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timer);
+			URL.revokeObjectURL(url);
+		};
+
+		const timer = setTimeout(() => {
+			cleanup();
+			resolve(null);
+		}, METADATA_TIMEOUT_MS);
 
 		audio.onloadedmetadata = () => {
-			URL.revokeObjectURL(url);
+			cleanup();
 			resolve({
 				duration: audio.duration,
 				sampleRate: 0,
@@ -60,7 +87,7 @@ function extractAudioMetadata(file: File): Promise<AudioMetadata | null> {
 		};
 
 		audio.onerror = () => {
-			URL.revokeObjectURL(url);
+			cleanup();
 			resolve(null);
 		};
 
@@ -73,9 +100,22 @@ function extractImageMetadata(file: File): Promise<ImageMetadata | null> {
 		const img = new Image();
 		const url = URL.createObjectURL(file);
 		img.src = url;
+		let settled = false;
+
+		const cleanup = () => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timer);
+			URL.revokeObjectURL(url);
+		};
+
+		const timer = setTimeout(() => {
+			cleanup();
+			resolve(null);
+		}, METADATA_TIMEOUT_MS);
 
 		img.onload = () => {
-			URL.revokeObjectURL(url);
+			cleanup();
 			resolve({
 				width: img.naturalWidth,
 				height: img.naturalHeight,
@@ -83,7 +123,7 @@ function extractImageMetadata(file: File): Promise<ImageMetadata | null> {
 		};
 
 		img.onerror = () => {
-			URL.revokeObjectURL(url);
+			cleanup();
 			resolve(null);
 		};
 	});

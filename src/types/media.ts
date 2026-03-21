@@ -34,4 +34,5 @@ export interface MediaAsset {
 	metadata: MediaMetadata | null;
 	status: MediaStatus;
 	addedAt: number;
+	errorMessage?: string;
 }

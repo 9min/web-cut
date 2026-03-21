@@ -13,14 +13,14 @@ web-cut/
 │   ├── app/                    # 앱 진입점
 │   ├── components/             # 컴포넌트
 │   │   ├── ui/                 # 기본 UI 컴포넌트 (shadcn/ui)
-│   │   ├── layout/             # 레이아웃 컴포넌트 (Header, Sidebar 등)
+│   │   ├── layout/             # 레이아웃 컴포넌트 (Header, EditorLayout 등)
 │   │   ├── media-pool/         # 미디어 라이브러리 관련 컴포넌트
 │   │   ├── timeline/           # 타임라인 관련 컴포넌트
-│   │   ├── preview/            # 프리뷰 캔버스 관련 컴포넌트
-│   │   ├── toolbar/            # 편집 도구 모음 컴포넌트
+│   │   ├── preview/            # 프리뷰 패널 관련 컴포넌트
+│   │   ├── inspector/          # 인스펙터 패널 관련 컴포넌트
 │   │   └── export/             # 내보내기 관련 컴포넌트
 │   ├── hooks/                  # 커스텀 훅
-│   ├── lib/                    # 외부 라이브러리 설정 (PixiJS, FFmpeg 등)
+│   ├── services/               # 외부 서비스 래퍼 (FFmpeg 등)
 │   ├── stores/                 # Zustand 상태 관리
 │   ├── types/                  # TypeScript 타입 정의
 │   ├── utils/                  # 유틸리티 함수
@@ -41,13 +41,20 @@ web-cut/
 
 ## 주요 디렉토리 설명
 
-### `src/lib/` — 외부 라이브러리 설정
+### `src/hooks/` — PixiJS 설정
 
-PixiJS, FFmpeg.wasm 등 외부 라이브러리의 초기화 및 설정 파일을 포함한다.
+PixiJS 애플리케이션의 초기화 및 설정은 커스텀 훅으로 관리한다.
 
 ```ts
-// src/lib/pixi.ts — PixiJS 애플리케이션 설정
-// src/lib/ffmpeg.ts — FFmpeg.wasm 초기화 및 래퍼
+// src/hooks/usePixiApp.ts — PixiJS 애플리케이션 설정
+```
+
+### `src/services/` — 외부 서비스 래퍼
+
+FFmpeg.wasm 등 외부 라이브러리의 서비스 레이어를 포함한다.
+
+```ts
+// src/services/ffmpegService.ts — FFmpeg.wasm 초기화 및 래퍼
 ```
 
 ### `src/stores/` — Zustand 상태 관리
@@ -60,7 +67,10 @@ src/stores/
 ├── useMediaStore.ts            # 미디어 라이브러리 상태
 ├── useTimelineStore.ts         # 타임라인, 트랙, 클립 상태
 ├── usePlaybackStore.ts         # 재생 상태 (현재 시간, 재생/정지)
-└── useHistoryStore.ts          # Undo/Redo 히스토리
+├── useHistoryStore.ts          # Undo/Redo 히스토리
+├── useExportStore.ts           # 내보내기 상태 (진행률, 설정 등)
+├── useZoomStore.ts             # 타임라인 줌 상태
+└── useUIStore.ts               # UI 상태 (사이드바 토글 등)
 ```
 
 ### `src/workers/` — Web Worker
@@ -69,7 +79,7 @@ src/stores/
 
 ```
 src/workers/
-└── ffmpegWorker.ts             # FFmpeg.wasm 인코딩 처리
+└── ffmpegWorker.ts             # FFmpeg.wasm 인코딩 처리 (미구현 — 현재 ffmpegService.ts에서 메인스레드 실행)
 ```
 
 ### `src/types/` — 타입 정의
@@ -95,17 +105,29 @@ components/
 │   └── MediaUploader.tsx       # 파일 업로드 영역
 ├── timeline/
 │   ├── Timeline.tsx            # 타임라인 컨테이너
-│   ├── Track.tsx               # 개별 트랙
-│   ├── Clip.tsx                # 개별 클립
+│   ├── TrackRow.tsx            # 개별 트랙 행
+│   ├── ClipBlock.tsx           # 개별 클립 블록
+│   ├── TextClipBlock.tsx       # 텍스트 클립 블록
+│   ├── AudioClipBlock.tsx      # 오디오 클립 블록
+│   ├── TransitionBlock.tsx     # 트랜지션 블록
+│   ├── AddTransitionButton.tsx # 트랜지션 추가 버튼
+│   ├── TransitionPopover.tsx   # 트랜지션 설정 팝오버
 │   ├── Playhead.tsx            # 플레이헤드
-│   └── TimeRuler.tsx           # 시간 눈금자
+│   ├── PlaybackControls.tsx    # 재생/정지, 시간 표시
+│   ├── TimeRuler.tsx           # 시간 눈금자
+│   ├── TimelineToolbar.tsx     # 타임라인 도구 모음 (트랙 추가, 자르기, 줌 등)
+│   ├── DropIndicator.tsx       # 드롭 위치 인디케이터
+│   └── SnapIndicator.tsx       # 스냅 가이드라인 인디케이터
 ├── preview/
-│   ├── PreviewCanvas.tsx       # PixiJS 프리뷰 캔버스
-│   └── PreviewControls.tsx     # 재생/정지, 시간 표시
-├── toolbar/
-│   └── Toolbar.tsx             # 편집 도구 모음 (자르기, 트림 등)
+│   └── PreviewPanel.tsx        # PixiJS 프리뷰 패널
+├── inspector/
+│   ├── InspectorPanel.tsx      # 인스펙터 메인 패널
+│   ├── AudioPanel.tsx          # 오디오 볼륨 조절
+│   ├── FilterPanel.tsx         # 필터 설정
+│   ├── TextOverlayPanel.tsx    # 텍스트 오버레이 설정
+│   └── TransformPanel.tsx      # 트랜스폼 (위치, 스케일, 회전) 설정
 └── export/
-    ├── ExportDialog.tsx        # 내보내기 설정 다이얼로그
+    ├── ExportPanel.tsx         # 내보내기 설정 패널
     └── ExportProgress.tsx      # 인코딩 진행률
 ```
 
@@ -179,7 +201,7 @@ Vite 프로젝트에서는 클라이언트에서 접근할 환경변수에 `VITE
 
 | 대상 | 규칙 | 예시 |
 |------|------|------|
-| 컴포넌트 | `PascalCase` | `Timeline`, `PreviewCanvas` |
+| 컴포넌트 | `PascalCase` | `Timeline`, `PreviewPanel` |
 | 함수 | `camelCase` | `splitClip`, `formatTime` |
 | 변수 | `camelCase` | `currentTime`, `isPlaying` |
 | 상수 | `UPPER_SNAKE_CASE` | `DEFAULT_FPS`, `MAX_TRACKS` |
