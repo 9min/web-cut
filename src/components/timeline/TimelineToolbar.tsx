@@ -1,9 +1,10 @@
-import { Minus, Plus, SplitSquareHorizontal, Trash2, Type } from "lucide-react";
+import { Minus, Music, Plus, SplitSquareHorizontal, Trash2, Type } from "lucide-react";
 import { DEFAULT_ZOOM } from "@/constants/timeline";
 
 interface TimelineToolbarProps {
 	onAddTrack: () => void;
 	onAddTextTrack: () => void;
+	onAddAudioTrack: () => void;
 	onZoomIn: () => void;
 	onZoomOut: () => void;
 	onSplit: () => void;
@@ -16,6 +17,7 @@ interface TimelineToolbarProps {
 export function TimelineToolbar({
 	onAddTrack,
 	onAddTextTrack,
+	onAddAudioTrack,
 	onZoomIn,
 	onZoomOut,
 	onSplit,
@@ -43,6 +45,16 @@ export function TimelineToolbar({
 			>
 				<Type size={12} />
 				텍스트 트랙
+			</button>
+			<button
+				type="button"
+				onClick={onAddAudioTrack}
+				className="flex items-center gap-1 rounded bg-green-700 px-2 py-1 text-xs text-white hover:bg-green-600"
+				aria-label="오디오 트랙 추가"
+				data-testid="add-audio-track-button"
+			>
+				<Music size={12} />
+				오디오 트랙
 			</button>
 			<div className="flex items-center gap-1 border-l border-gray-700 pl-2">
 				<button

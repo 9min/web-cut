@@ -3,7 +3,7 @@ import { DEFAULT_CLIP_FILTER } from "@/constants/filter";
 import { TEXT_MAX_LENGTH } from "@/constants/textOverlay";
 import type { ClipFilter } from "@/types/filter";
 import type { TextClip, TextOverlay } from "@/types/textOverlay";
-import type { Clip, Track } from "@/types/timeline";
+import type { Clip, ClipTransform, Track } from "@/types/timeline";
 import type { Transition } from "@/types/transition";
 import { splitClipAt, trimClip } from "@/utils/editUtils";
 import { isDefaultFilter } from "@/utils/filterUtils";
@@ -39,6 +39,10 @@ interface TimelineState {
 	updateTransition: (trackId: string, clipId: string, updates: Partial<Transition>) => void;
 	updateFilter: (trackId: string, clipId: string, updates: Partial<ClipFilter>) => void;
 	resetFilter: (trackId: string, clipId: string) => void;
+	addAudioTrack: () => void;
+	updateClipVolume: (trackId: string, clipId: string, volume: number) => void;
+	updateTransform: (trackId: string, clipId: string, updates: Partial<ClipTransform>) => void;
+	resetTransform: (trackId: string, clipId: string) => void;
 	addTextTrack: () => void;
 	addTextClip: (trackId: string, textClip: TextClip) => void;
 	updateTextClip: (
@@ -351,6 +355,79 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
 					? {
 							...t,
 							clips: t.clips.map((c) => (c.id === clipId ? { ...c, filter: undefined } : c)),
+						}
+					: t,
+			),
+		}));
+	},
+
+	addAudioTrack: () => {
+		const { tracks } = get();
+		const audioTrackCount = tracks.filter((t) => t.type === "audio").length;
+		const name = `오디오 ${audioTrackCount + 1}`;
+		set((state) => ({
+			tracks: [
+				...state.tracks,
+				{
+					id: generateId(),
+					name,
+					type: "audio" as const,
+					clips: [],
+					textClips: [],
+					muted: false,
+					locked: false,
+					order: state.tracks.length,
+				},
+			],
+		}));
+	},
+
+	updateClipVolume: (trackId, clipId, volume) => {
+		const clamped = Math.max(0, Math.min(1, volume));
+		set((state) => ({
+			tracks: state.tracks.map((t) =>
+				t.id === trackId
+					? {
+							...t,
+							clips: t.clips.map((c) =>
+								c.id === clipId ? { ...c, volume: clamped === 1 ? undefined : clamped } : c,
+							),
+						}
+					: t,
+			),
+		}));
+	},
+
+	updateTransform: (trackId, clipId, updates) => {
+		set((state) => ({
+			tracks: state.tracks.map((t) =>
+				t.id === trackId
+					? {
+							...t,
+							clips: t.clips.map((c) => {
+								if (c.id !== clipId) return c;
+								const current = c.transform ?? {
+									x: 50,
+									y: 50,
+									scaleX: 1,
+									scaleY: 1,
+									rotation: 0,
+								};
+								return { ...c, transform: { ...current, ...updates } };
+							}),
+						}
+					: t,
+			),
+		}));
+	},
+
+	resetTransform: (trackId, clipId) => {
+		set((state) => ({
+			tracks: state.tracks.map((t) =>
+				t.id === trackId
+					? {
+							...t,
+							clips: t.clips.map((c) => (c.id === clipId ? { ...c, transform: undefined } : c)),
 						}
 					: t,
 			),

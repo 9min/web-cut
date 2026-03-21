@@ -7,6 +7,7 @@ import { useTimelineStore } from "@/stores/useTimelineStore";
 import { useZoomStore } from "@/stores/useZoomStore";
 import { dropIndicatorMap } from "@/utils/dropIndicatorRefs";
 import { generateId } from "@/utils/generateId";
+import { createDefaultTextClip } from "@/utils/textClipUtils";
 import { getTimelineDuration, timeToPixel } from "@/utils/timelineUtils";
 import { PlaybackControls } from "./PlaybackControls";
 import { Playhead } from "./Playhead";
@@ -22,7 +23,10 @@ export function Timeline() {
 	const splitClip = useTimelineStore((s) => s.splitClip);
 	const removeClip = useTimelineStore((s) => s.removeClip);
 	const removeTextClip = useTimelineStore((s) => s.removeTextClip);
+	const removeTrack = useTimelineStore((s) => s.removeTrack);
 	const addTextTrack = useTimelineStore((s) => s.addTextTrack);
+	const addAudioTrack = useTimelineStore((s) => s.addAudioTrack);
+	const addTextClip = useTimelineStore((s) => s.addTextClip);
 	const currentTime = usePlaybackStore((s) => s.currentTime);
 	const seek = usePlaybackStore((s) => s.seek);
 	const setDuration = usePlaybackStore((s) => s.setDuration);
@@ -42,6 +46,14 @@ export function Timeline() {
 	useEffect(() => {
 		setDuration(duration);
 	}, [duration, setDuration]);
+
+	const handleRemoveTrack = useCallback(
+		(trackId: string) => {
+			pushSnapshot();
+			removeTrack(trackId);
+		},
+		[removeTrack, pushSnapshot],
+	);
 
 	const handleAddTrack = useCallback(() => {
 		const { tracks: currentTracks } = useTimelineStore.getState();
@@ -68,6 +80,22 @@ export function Timeline() {
 		pushSnapshot();
 		addTextTrack();
 	}, [addTextTrack, pushSnapshot]);
+
+	const handleAddAudioTrack = useCallback(() => {
+		pushSnapshot();
+		addAudioTrack();
+	}, [addAudioTrack, pushSnapshot]);
+
+	const handleAddTextClip = useCallback(
+		(trackId: string, startTime: number) => {
+			const track = useTimelineStore.getState().tracks.find((t) => t.id === trackId);
+			pushSnapshot();
+			const textClip = createDefaultTextClip(trackId, startTime, track?.textClips);
+			addTextClip(trackId, textClip);
+			selectClip(textClip.id);
+		},
+		[addTextClip, selectClip, pushSnapshot],
+	);
 
 	const handleSplit = useCallback(() => {
 		const time = usePlaybackStore.getState().currentTime;
@@ -114,6 +142,7 @@ export function Timeline() {
 				<TimelineToolbar
 					onAddTrack={handleAddTrack}
 					onAddTextTrack={handleAddTextTrack}
+					onAddAudioTrack={handleAddAudioTrack}
 					onZoomIn={zoomIn}
 					onZoomOut={zoomOut}
 					onSplit={handleSplit}
@@ -144,6 +173,9 @@ export function Timeline() {
 								zoom={zoom}
 								selectedClipId={selectedClipId}
 								onSelectClip={selectClip}
+								onAddTextClip={handleAddTextClip}
+								onRemoveTrack={handleRemoveTrack}
+								currentTime={currentTime}
 								dropIndicatorRef={(el) => {
 									if (el) {
 										dropIndicatorMap.set(track.id, el);

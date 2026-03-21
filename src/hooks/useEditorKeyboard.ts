@@ -10,14 +10,21 @@ function handlePlaybackToggle(e: KeyboardEvent): void {
 
 function handleDeleteClip(e: KeyboardEvent): void {
 	e.preventDefault();
-	const { selectedClipId, tracks, removeClip } = useTimelineStore.getState();
+	const { selectedClipId, tracks, removeClip, removeTextClip } = useTimelineStore.getState();
 	if (!selectedClipId) return;
 
 	const track = tracks.find((t) => t.clips.some((c) => c.id === selectedClipId));
-	if (!track) return;
+	if (track) {
+		useHistoryStore.getState().pushSnapshot();
+		removeClip(track.id, selectedClipId);
+		return;
+	}
 
-	useHistoryStore.getState().pushSnapshot();
-	removeClip(track.id, selectedClipId);
+	const textTrack = tracks.find((t) => t.textClips.some((tc) => tc.id === selectedClipId));
+	if (textTrack) {
+		useHistoryStore.getState().pushSnapshot();
+		removeTextClip(textTrack.id, selectedClipId);
+	}
 }
 
 function handleSplitClip(e: KeyboardEvent): void {

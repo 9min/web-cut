@@ -86,6 +86,37 @@ export interface VisibleTextClip {
 	trackId: string;
 }
 
+export interface VisibleAudioClip {
+	clip: Clip;
+	trackId: string;
+	localTime: number;
+}
+
+export function getVisibleAudioClipsAtTime(
+	tracks: Track[],
+	currentTime: number,
+): VisibleAudioClip[] {
+	const result: VisibleAudioClip[] = [];
+
+	for (const track of tracks) {
+		if (track.type !== "audio") continue;
+
+		for (const clip of track.clips) {
+			const clipEnd = clip.startTime + clip.duration;
+			if (currentTime >= clip.startTime && currentTime < clipEnd) {
+				const elapsed = currentTime - clip.startTime;
+				result.push({
+					clip,
+					trackId: track.id,
+					localTime: clip.inPoint + elapsed,
+				});
+			}
+		}
+	}
+
+	return result;
+}
+
 export function getVisibleTextClipsAtTime(tracks: Track[], currentTime: number): VisibleTextClip[] {
 	const result: VisibleTextClip[] = [];
 

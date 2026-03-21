@@ -36,16 +36,28 @@ function handleMediaDrop(
 	const asset = useMediaStore.getState().assets.find((a) => a.id === data.assetId);
 	if (!asset) return;
 
-	const track = useTimelineStore.getState().tracks.find((t) => t.id === trackId);
+	const { tracks, addAudioTrack } = useTimelineStore.getState();
+	let track = tracks.find((t) => t.id === trackId);
 	if (!track) return;
+
+	// 오디오 에셋을 video 트랙에 드롭 시 오디오 트랙 자동 생성
+	if (asset.type === "audio" && track.type !== "audio") {
+		addAudioTrack();
+		const updatedTracks = useTimelineStore.getState().tracks;
+		track = updatedTracks.find((t) => t.type === "audio") ?? track;
+		if (track.type !== "audio") return;
+	}
+
+	// video/image 에셋을 audio 트랙에 드롭 방지
+	if (asset.type !== "audio" && track.type === "audio") return;
 
 	const duration = asset.metadata && "duration" in asset.metadata ? asset.metadata.duration : 5;
 	const startTime = findInsertPosition(track.clips, 0, duration);
 
 	useHistoryStore.getState().pushSnapshot();
-	addClip(trackId, {
+	addClip(track.id, {
 		id: generateId(),
-		trackId,
+		trackId: track.id,
 		assetId: asset.id,
 		name: sanitizeFileName(asset.name),
 		startTime,

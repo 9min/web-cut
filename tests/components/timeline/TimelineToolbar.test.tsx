@@ -6,6 +6,7 @@ import { TimelineToolbar } from "@/components/timeline/TimelineToolbar";
 const defaultProps = {
 	onAddTrack: vi.fn(),
 	onAddTextTrack: vi.fn(),
+	onAddAudioTrack: vi.fn(),
 	onZoomIn: vi.fn(),
 	onZoomOut: vi.fn(),
 	onSplit: vi.fn(),
