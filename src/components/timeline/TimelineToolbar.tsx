@@ -1,4 +1,4 @@
-import { Minus, Plus, Scissors, Trash2 } from "lucide-react";
+import { Minus, Plus, SplitSquareHorizontal, Trash2 } from "lucide-react";
 import { DEFAULT_ZOOM } from "@/constants/timeline";
 
 interface TimelineToolbarProps {
@@ -39,8 +39,9 @@ export function TimelineToolbar({
 					disabled={!canSplit}
 					className="rounded p-1 text-gray-400 hover:bg-gray-700 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400"
 					aria-label="분할"
+					title="분할 (⌘S)"
 				>
-					<Scissors size={14} />
+					<SplitSquareHorizontal size={14} />
 				</button>
 				<button
 					type="button"
@@ -48,6 +49,7 @@ export function TimelineToolbar({
 					disabled={!canDelete}
 					className="rounded p-1 text-gray-400 hover:bg-gray-700 hover:text-red-400 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400"
 					aria-label="삭제"
+					title="삭제 (Delete/Backspace)"
 				>
 					<Trash2 size={14} />
 				</button>
@@ -58,6 +60,7 @@ export function TimelineToolbar({
 					onClick={onZoomOut}
 					className="rounded p-1 text-gray-400 hover:bg-gray-700 hover:text-white"
 					aria-label="축소"
+					title="축소"
 				>
 					<Minus size={14} />
 				</button>
@@ -69,6 +72,7 @@ export function TimelineToolbar({
 					onClick={onZoomIn}
 					className="rounded p-1 text-gray-400 hover:bg-gray-700 hover:text-white"
 					aria-label="확대"
+					title="확대"
 				>
 					<Plus size={14} />
 				</button>

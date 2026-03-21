@@ -82,4 +82,67 @@ describe("buildFFmpegArgs", () => {
 		const args = buildFFmpegArgs([], new Map(), 1920, 1080);
 		expect(args).toHaveLength(0);
 	});
+
+	it("트랜지션이 있으면 xfade 필터를 사용한다", () => {
+		const clips = [
+			makeClip({
+				id: "c1",
+				assetId: "a1",
+				startTime: 0,
+				duration: 5,
+				inPoint: 0,
+				outPoint: 5,
+				outTransition: { type: "fade", duration: 1 },
+			}),
+			makeClip({ id: "c2", assetId: "a2", startTime: 5, duration: 5, inPoint: 0, outPoint: 5 }),
+		];
+		const assetFileMap = new Map([
+			["a1", "input_a1.mp4"],
+			["a2", "input_a2.mp4"],
+		]);
+		const args = buildFFmpegArgs(clips, assetFileMap, 1920, 1080);
+
+		const filterComplex = args[args.indexOf("-filter_complex") + 1] ?? "";
+		expect(filterComplex).toContain("xfade=transition=fade:duration=1:offset=4");
+		expect(filterComplex).toContain("acrossfade=d=1");
+	});
+
+	it("wipe-left 트랜지션을 wipeleft로 매핑한다", () => {
+		const clips = [
+			makeClip({
+				id: "c1",
+				assetId: "a1",
+				startTime: 0,
+				duration: 5,
+				inPoint: 0,
+				outPoint: 5,
+				outTransition: { type: "wipe-left", duration: 0.5 },
+			}),
+			makeClip({ id: "c2", assetId: "a2", startTime: 5, duration: 5, inPoint: 0, outPoint: 5 }),
+		];
+		const assetFileMap = new Map([
+			["a1", "input_a1.mp4"],
+			["a2", "input_a2.mp4"],
+		]);
+		const args = buildFFmpegArgs(clips, assetFileMap, 1920, 1080);
+
+		const filterComplex = args[args.indexOf("-filter_complex") + 1] ?? "";
+		expect(filterComplex).toContain("xfade=transition=wipeleft");
+	});
+
+	it("트랜지션 없는 여러 클립은 concat을 사용한다", () => {
+		const clips = [
+			makeClip({ id: "c1", assetId: "a1", startTime: 0, inPoint: 0, outPoint: 5 }),
+			makeClip({ id: "c2", assetId: "a2", startTime: 5, inPoint: 0, outPoint: 5 }),
+		];
+		const assetFileMap = new Map([
+			["a1", "input_a1.mp4"],
+			["a2", "input_a2.mp4"],
+		]);
+		const args = buildFFmpegArgs(clips, assetFileMap, 1920, 1080);
+
+		const filterComplex = args[args.indexOf("-filter_complex") + 1] ?? "";
+		expect(filterComplex).toContain("concat=n=2");
+		expect(filterComplex).not.toContain("xfade");
+	});
 });

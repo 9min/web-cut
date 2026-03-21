@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { Clip, Track } from "@/types/timeline";
+import type { Transition } from "@/types/transition";
 import { splitClipAt, trimClip } from "@/utils/editUtils";
 import { generateId } from "@/utils/generateId";
 import { findDropIndex, reorderAndCompact } from "@/utils/timelineUtils";
@@ -27,6 +28,9 @@ interface TimelineState {
 	) => void;
 	removeClipsByAssetId: (assetId: string) => void;
 	selectClip: (clipId: string | null) => void;
+	addTransition: (trackId: string, clipId: string, transition: Transition) => void;
+	removeTransition: (trackId: string, clipId: string) => void;
+	updateTransition: (trackId: string, clipId: string, updates: Partial<Transition>) => void;
 	reset: () => void;
 }
 
@@ -84,9 +88,24 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
 
 	removeClip: (trackId, clipId) => {
 		const { selectedClipId } = get();
+		const track = get().tracks.find((t) => t.id === trackId);
+		if (!track) return;
+
+		// 삭제되는 클립의 이전 클립 outTransition도 제거 (다음 클립이 바뀌므로)
+		const sorted = [...track.clips].sort((a, b) => a.startTime - b.startTime);
+		const clipIndex = sorted.findIndex((c) => c.id === clipId);
+		const prevClipId = clipIndex > 0 ? sorted[clipIndex - 1]?.id : undefined;
+
 		set((state) => ({
 			tracks: state.tracks.map((t) =>
-				t.id === trackId ? { ...t, clips: t.clips.filter((c) => c.id !== clipId) } : t,
+				t.id === trackId
+					? {
+							...t,
+							clips: t.clips
+								.filter((c) => c.id !== clipId)
+								.map((c) => (c.id === prevClipId ? { ...c, outTransition: undefined } : c)),
+						}
+					: t,
 			),
 			selectedClipId: selectedClipId === clipId ? null : selectedClipId,
 		}));
@@ -170,13 +189,16 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
 		if (!result) return;
 
 		const [left, right] = result;
+		// 원본의 outTransition을 오른쪽 분할 클립에 이전
+		const leftClip: Clip = { ...left, outTransition: undefined };
+		const rightClip: Clip = { ...right, outTransition: clip.outTransition };
 		set((state) => ({
 			tracks: state.tracks.map((t) =>
 				t.id === trackId
-					? { ...t, clips: [...t.clips.filter((c) => c.id !== clipId), left, right] }
+					? { ...t, clips: [...t.clips.filter((c) => c.id !== clipId), leftClip, rightClip] }
 					: t,
 			),
-			selectedClipId: left.id,
+			selectedClipId: leftClip.id,
 		}));
 	},
 
@@ -215,6 +237,59 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
 	},
 
 	selectClip: (clipId) => set({ selectedClipId: clipId }),
+
+	addTransition: (trackId, clipId, transition) => {
+		const track = get().tracks.find((t) => t.id === trackId);
+		if (!track) return;
+
+		const sorted = [...track.clips].sort((a, b) => a.startTime - b.startTime);
+		const clipIndex = sorted.findIndex((c) => c.id === clipId);
+		const nextClip = clipIndex >= 0 ? sorted[clipIndex + 1] : undefined;
+		if (!nextClip) return;
+
+		set((state) => ({
+			tracks: state.tracks.map((t) =>
+				t.id === trackId
+					? {
+							...t,
+							clips: t.clips.map((c) =>
+								c.id === clipId ? { ...c, outTransition: transition } : c,
+							),
+						}
+					: t,
+			),
+		}));
+	},
+
+	removeTransition: (trackId, clipId) => {
+		set((state) => ({
+			tracks: state.tracks.map((t) =>
+				t.id === trackId
+					? {
+							...t,
+							clips: t.clips.map((c) => (c.id === clipId ? { ...c, outTransition: undefined } : c)),
+						}
+					: t,
+			),
+		}));
+	},
+
+	updateTransition: (trackId, clipId, updates) => {
+		set((state) => ({
+			tracks: state.tracks.map((t) =>
+				t.id === trackId
+					? {
+							...t,
+							clips: t.clips.map((c) =>
+								c.id === clipId && c.outTransition
+									? { ...c, outTransition: { ...c.outTransition, ...updates } }
+									: c,
+							),
+						}
+					: t,
+			),
+		}));
+	},
 
 	reset: () => set(initialState),
 }));

@@ -1,3 +1,5 @@
+import type { Transition } from "./transition";
+
 export type TrackType = "video" | "audio";
 
 export interface Clip {
@@ -9,6 +11,7 @@ export interface Clip {
 	duration: number;
 	inPoint: number;
 	outPoint: number;
+	outTransition?: Transition;
 }
 
 export interface Track {
