@@ -22,6 +22,7 @@ function makeTrack(clips: Clip[], overrides: Partial<Track> = {}): Track {
 		name: "비디오 1",
 		type: "video",
 		clips,
+		textClips: [],
 		muted: false,
 		locked: false,
 		order: 0,

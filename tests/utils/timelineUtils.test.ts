@@ -34,6 +34,7 @@ function makeTrack(clips: Clip[], id = "track-1"): Track {
 		name: "비디오 1",
 		type: "video",
 		clips,
+		textClips: [],
 		muted: false,
 		locked: false,
 		order: 0,

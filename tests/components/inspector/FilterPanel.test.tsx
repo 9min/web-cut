@@ -66,6 +66,7 @@ describe("FilterPanel", () => {
 							filter: { brightness: 50, contrast: 0, saturation: 0 },
 						},
 					],
+					textClips: [],
 					muted: false,
 					locked: false,
 					order: 0,

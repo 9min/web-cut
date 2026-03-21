@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { useTimelineStore } from "@/stores/useTimelineStore";
-import { createTestClip, createTestTrack } from "../factories/timelineFactory";
+import { createTestClip, createTestTextClip, createTestTrack } from "../factories/timelineFactory";
 
 describe("useTimelineStore", () => {
 	beforeEach(() => {
@@ -227,7 +227,6 @@ describe("useTimelineStore", () => {
 	describe("insertClipAt", () => {
 		it("C를 시간 0으로 드래그하면 C(0-5) A(5-10) B(10-15)가 된다", () => {
 			useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
-			// A(0-5) B(5-10) C(10-15)
 			useTimelineStore
 				.getState()
 				.addClip("t1", createTestClip({ id: "A", trackId: "t1", startTime: 0, duration: 5 }));
@@ -284,8 +283,6 @@ describe("useTimelineStore", () => {
 				.getState()
 				.addClip("t1", createTestClip({ id: "C", trackId: "t1", startTime: 10, duration: 5 }));
 
-			// dropTime=3, A midpoint=2.5 → 3>2.5 → index 1, B midpoint=7.5 → 3<7.5 → index 1
-			// 결과: A(0-5), C(5-10), B(10-15)
 			useTimelineStore.getState().insertClipAt("t1", "C", "t1", 3);
 
 			const clips = useTimelineStore.getState().tracks[0]?.clips;
@@ -299,7 +296,6 @@ describe("useTimelineStore", () => {
 
 		it("빈 공간이 있을 때 겹치는 클립만 밀린다", () => {
 			useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
-			// A(0-5) _빈(5-8)_ B(8-13)
 			useTimelineStore
 				.getState()
 				.addClip("t1", createTestClip({ id: "A", trackId: "t1", startTime: 0, duration: 5 }));
@@ -310,14 +306,13 @@ describe("useTimelineStore", () => {
 				.getState()
 				.addClip("t1", createTestClip({ id: "C", trackId: "t1", startTime: 15, duration: 5 }));
 
-			// C를 5로 드래그 → C(5-10), B(8-13)와 겹침 → B(10-15)
 			useTimelineStore.getState().insertClipAt("t1", "C", "t1", 5);
 
 			const clips = useTimelineStore.getState().tracks[0]?.clips;
 			const clipA = clips?.find((c) => c.id === "A");
 			const clipB = clips?.find((c) => c.id === "B");
 			const clipC = clips?.find((c) => c.id === "C");
-			expect(clipA?.startTime).toBe(0); // A는 안 밀림
+			expect(clipA?.startTime).toBe(0);
 			expect(clipC?.startTime).toBe(5);
 			expect(clipB?.startTime).toBe(10);
 		});
@@ -331,9 +326,6 @@ describe("useTimelineStore", () => {
 				.getState()
 				.addClip("t1", createTestClip({ id: "B", trackId: "t1", startTime: 20, duration: 5 }));
 
-			// A를 10으로 이동 → otherClips=[B(20-25)], dropTime=10
-			// B midpoint=22.5, 10<22.5 → index 0
-			// 결과: A(0-5), B(5-10)
 			useTimelineStore.getState().insertClipAt("t1", "A", "t1", 10);
 
 			const clips = useTimelineStore.getState().tracks[0]?.clips;
@@ -358,10 +350,6 @@ describe("useTimelineStore", () => {
 				.getState()
 				.addClip("t1", createTestClip({ id: "D", trackId: "t1", startTime: 9, duration: 3 }));
 
-			// D를 5.5로 드롭 → otherClips=[A(0-3),B(3-6),C(6-9)]
-			// A midpoint=1.5, B midpoint=4.5, C midpoint=7.5
-			// 5.5 > 4.5, 5.5 < 7.5 → index 2
-			// 결과: A(0-3), B(3-6), D(6-9), C(9-12)
 			useTimelineStore.getState().insertClipAt("t1", "D", "t1", 5.5);
 
 			const clips = useTimelineStore.getState().tracks[0]?.clips;
@@ -390,9 +378,6 @@ describe("useTimelineStore", () => {
 				.getState()
 				.addClip("t1", createTestClip({ id: "D", trackId: "t1", startTime: 9, duration: 3 }));
 
-			// D를 0.5로 드롭 → otherClips=[A(0-3),B(3-6),C(6-9)]
-			// A midpoint=1.5, 0.5 < 1.5 → index 0
-			// 결과: D(0-3), A(3-6), B(6-9), C(9-12)
 			useTimelineStore.getState().insertClipAt("t1", "D", "t1", 0.5);
 
 			const clips = useTimelineStore.getState().tracks[0]?.clips;
@@ -416,7 +401,6 @@ describe("useTimelineStore", () => {
 				.getState()
 				.addClip("t2", createTestClip({ id: "X", trackId: "t2", startTime: 0, duration: 5 }));
 
-			// A를 t2의 시간 0으로 삽입 → A(0-5), X(5-10)
 			useTimelineStore.getState().insertClipAt("t1", "A", "t2", 0);
 
 			const t1clips = useTimelineStore.getState().tracks[0]?.clips;
@@ -560,10 +544,8 @@ describe("useTimelineStore", () => {
 			useTimelineStore.getState().splitClip("t1", "A", 5);
 
 			const clips = useTimelineStore.getState().tracks[0]?.clips;
-			// 왼쪽 클립은 outTransition 없음
 			const leftClip = clips?.find((c) => c.startTime === 0 && c.duration === 5);
 			expect(leftClip?.outTransition).toBeUndefined();
-			// 오른쪽 클립이 outTransition을 가짐
 			const rightClip = clips?.find((c) => c.startTime === 5 && c.duration === 5);
 			expect(rightClip?.outTransition).toEqual({ type: "fade", duration: 0.5 });
 		});
@@ -640,6 +622,137 @@ describe("useTimelineStore", () => {
 
 			expect(leftClip?.filter).toEqual({ brightness: 30, contrast: -20, saturation: 50 });
 			expect(rightClip?.filter).toEqual({ brightness: 30, contrast: -20, saturation: 50 });
+		});
+	});
+
+	describe("addTextTrack", () => {
+		it("텍스트 타입 트랙을 생성한다", () => {
+			useTimelineStore.getState().addTextTrack();
+			const tracks = useTimelineStore.getState().tracks;
+			expect(tracks).toHaveLength(1);
+			expect(tracks[0]?.type).toBe("text");
+			expect(tracks[0]?.name).toBe("텍스트 1");
+			expect(tracks[0]?.textClips).toEqual([]);
+		});
+
+		it("텍스트 트랙 번호가 순차적으로 증가한다", () => {
+			useTimelineStore.getState().addTextTrack();
+			useTimelineStore.getState().addTextTrack();
+			const tracks = useTimelineStore.getState().tracks;
+			expect(tracks[1]?.name).toBe("텍스트 2");
+		});
+	});
+
+	describe("addTextClip", () => {
+		it("텍스트 트랙에 텍스트 클립을 추가한다", () => {
+			useTimelineStore.getState().addTextTrack();
+			const trackId = useTimelineStore.getState().tracks[0]?.id as string;
+			const textClip = createTestTextClip({ id: "tc1", trackId });
+
+			useTimelineStore.getState().addTextClip(trackId, textClip);
+
+			const track = useTimelineStore.getState().tracks[0];
+			expect(track?.textClips).toHaveLength(1);
+			expect(track?.textClips[0]?.id).toBe("tc1");
+		});
+	});
+
+	describe("updateTextClip", () => {
+		it("텍스트 클립의 startTime/duration을 수정한다", () => {
+			useTimelineStore.getState().addTextTrack();
+			const trackId = useTimelineStore.getState().tracks[0]?.id as string;
+			useTimelineStore
+				.getState()
+				.addTextClip(
+					trackId,
+					createTestTextClip({ id: "tc1", trackId, startTime: 0, duration: 3 }),
+				);
+
+			useTimelineStore.getState().updateTextClip(trackId, "tc1", { startTime: 2, duration: 5 });
+
+			const tc = useTimelineStore.getState().tracks[0]?.textClips[0];
+			expect(tc?.startTime).toBe(2);
+			expect(tc?.duration).toBe(5);
+		});
+	});
+
+	describe("updateTextClipOverlay", () => {
+		it("텍스트 클립의 overlay 속성을 부분 업데이트한다", () => {
+			useTimelineStore.getState().addTextTrack();
+			const trackId = useTimelineStore.getState().tracks[0]?.id as string;
+			useTimelineStore.getState().addTextClip(trackId, createTestTextClip({ id: "tc1", trackId }));
+
+			useTimelineStore.getState().updateTextClipOverlay(trackId, "tc1", { content: "안녕하세요" });
+
+			const tc = useTimelineStore.getState().tracks[0]?.textClips[0];
+			expect(tc?.overlay.content).toBe("안녕하세요");
+			expect(tc?.overlay.fontSize).toBe(36);
+		});
+
+		it("content 업데이트 시 HTML 태그를 제거한다 (XSS 방지)", () => {
+			useTimelineStore.getState().addTextTrack();
+			const trackId = useTimelineStore.getState().tracks[0]?.id as string;
+			useTimelineStore.getState().addTextClip(trackId, createTestTextClip({ id: "tc1", trackId }));
+
+			useTimelineStore
+				.getState()
+				.updateTextClipOverlay(trackId, "tc1", { content: "<script>alert(1)</script>" });
+
+			const tc = useTimelineStore.getState().tracks[0]?.textClips[0];
+			expect(tc?.overlay.content).toBe("alert(1)");
+		});
+	});
+
+	describe("removeTextClip", () => {
+		it("텍스트 클립을 삭제한다", () => {
+			useTimelineStore.getState().addTextTrack();
+			const trackId = useTimelineStore.getState().tracks[0]?.id as string;
+			useTimelineStore.getState().addTextClip(trackId, createTestTextClip({ id: "tc1", trackId }));
+
+			useTimelineStore.getState().removeTextClip(trackId, "tc1");
+
+			expect(useTimelineStore.getState().tracks[0]?.textClips).toHaveLength(0);
+		});
+
+		it("선택된 텍스트 클립을 삭제하면 selectedClipId가 null이 된다", () => {
+			useTimelineStore.getState().addTextTrack();
+			const trackId = useTimelineStore.getState().tracks[0]?.id as string;
+			useTimelineStore.getState().addTextClip(trackId, createTestTextClip({ id: "tc1", trackId }));
+			useTimelineStore.getState().selectClip("tc1");
+
+			useTimelineStore.getState().removeTextClip(trackId, "tc1");
+
+			expect(useTimelineStore.getState().selectedClipId).toBeNull();
+		});
+	});
+
+	describe("moveTextClip", () => {
+		it("같은 트랙 내에서 텍스트 클립을 이동한다", () => {
+			useTimelineStore.getState().addTextTrack();
+			const trackId = useTimelineStore.getState().tracks[0]?.id as string;
+			useTimelineStore
+				.getState()
+				.addTextClip(trackId, createTestTextClip({ id: "tc1", trackId, startTime: 0 }));
+
+			useTimelineStore.getState().moveTextClip(trackId, "tc1", trackId, 5);
+
+			expect(useTimelineStore.getState().tracks[0]?.textClips[0]?.startTime).toBe(5);
+		});
+
+		it("다른 텍스트 트랙으로 텍스트 클립을 이동한다", () => {
+			useTimelineStore.getState().addTextTrack();
+			useTimelineStore.getState().addTextTrack();
+			const trackId1 = useTimelineStore.getState().tracks[0]?.id as string;
+			const trackId2 = useTimelineStore.getState().tracks[1]?.id as string;
+			useTimelineStore
+				.getState()
+				.addTextClip(trackId1, createTestTextClip({ id: "tc1", trackId: trackId1 }));
+
+			useTimelineStore.getState().moveTextClip(trackId1, "tc1", trackId2, 3);
+
+			expect(useTimelineStore.getState().tracks[0]?.textClips).toHaveLength(0);
+			expect(useTimelineStore.getState().tracks[1]?.textClips).toHaveLength(1);
+			expect(useTimelineStore.getState().tracks[1]?.textClips[0]?.startTime).toBe(3);
 		});
 	});
 });

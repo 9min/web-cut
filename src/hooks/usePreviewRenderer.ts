@@ -5,6 +5,7 @@ import {
 	Container,
 	Graphics,
 	Sprite,
+	type Text,
 	Texture,
 	VideoSource,
 } from "pixi.js";
@@ -14,7 +15,17 @@ import { usePlaybackStore } from "@/stores/usePlaybackStore";
 import { useProjectStore } from "@/stores/useProjectStore";
 import { useTimelineStore } from "@/stores/useTimelineStore";
 import { applyClipFilter, clearClipFilter } from "@/utils/filterRenderer";
-import { getVisibleClipsAtTime, type VisibleClip } from "@/utils/previewUtils";
+import {
+	getVisibleClipsAtTime,
+	getVisibleTextClipsAtTime,
+	type VisibleClip,
+} from "@/utils/previewUtils";
+import {
+	applyTextOverlay,
+	clearTextOverlay,
+	type DragContext,
+	destroyAllTextOverlays,
+} from "@/utils/textOverlayRenderer";
 import {
 	applyFadeTransition,
 	applyWipeTransition,
@@ -32,6 +43,8 @@ export function usePreviewRenderer(
 	ready: boolean,
 ): void {
 	const entriesRef = useRef<Map<string, SpriteEntry>>(new Map());
+	const textEntriesRef = useRef<Map<string, Text>>(new Map());
+	const dragCtxRef = useRef<Map<string, DragContext>>(new Map());
 	const loadingRef = useRef<Set<string>>(new Set());
 	const stageContainerRef = useRef<Container | null>(null);
 	const bgRef = useRef<Graphics | null>(null);
@@ -39,7 +52,10 @@ export function usePreviewRenderer(
 	useEffect(() => {
 		if (!ready || !appRef.current) return;
 
+		appRef.current.stage.eventMode = "static";
+
 		const container = new Container();
+		container.eventMode = "static";
 		stageContainerRef.current = container;
 		appRef.current.stage.addChild(container);
 
@@ -52,6 +68,8 @@ export function usePreviewRenderer(
 				}
 			}
 			entriesRef.current.clear();
+			destroyAllTextOverlays(textEntriesRef);
+			dragCtxRef.current.clear();
 			loadingRef.current.clear();
 
 			if (stageContainerRef.current) {
@@ -115,6 +133,35 @@ export function usePreviewRenderer(
 
 				if (entry.video) {
 					syncVideo(entry.video, vc.localTime);
+				}
+			}
+
+			// 독립 텍스트 클립 렌더링
+			const visibleTextClips = getVisibleTextClipsAtTime(tracks, currentTime);
+			const activeTextIds = new Set<string>();
+
+			for (const vtc of visibleTextClips) {
+				activeTextIds.add(vtc.textClip.id);
+				if (vtc.textClip.overlay.content) {
+					applyTextOverlay(
+						container,
+						textEntriesRef,
+						vtc.textClip.id,
+						vtc.textClip.overlay,
+						pw,
+						ph,
+						vtc.trackId,
+						dragCtxRef,
+					);
+				} else {
+					clearTextOverlay(container, textEntriesRef, vtc.textClip.id);
+				}
+			}
+
+			// 비활성 텍스트 클립 숨김
+			for (const [id] of textEntriesRef.current) {
+				if (!activeTextIds.has(id)) {
+					clearTextOverlay(container, textEntriesRef, id);
 				}
 			}
 

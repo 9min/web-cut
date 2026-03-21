@@ -5,6 +5,7 @@ import { TimelineToolbar } from "@/components/timeline/TimelineToolbar";
 
 const defaultProps = {
 	onAddTrack: vi.fn(),
+	onAddTextTrack: vi.fn(),
 	onZoomIn: vi.fn(),
 	onZoomOut: vi.fn(),
 	onSplit: vi.fn(),
@@ -17,7 +18,7 @@ const defaultProps = {
 describe("TimelineToolbar", () => {
 	it("트랙 추가 버튼을 렌더링한다", () => {
 		render(<TimelineToolbar {...defaultProps} />);
-		expect(screen.getByRole("button", { name: /트랙 추가/ })).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "트랙 추가" })).toBeInTheDocument();
 	});
 
 	it("줌 인/아웃 버튼을 렌더링한다", () => {
@@ -35,7 +36,7 @@ describe("TimelineToolbar", () => {
 	it("트랙 추가 버튼 클릭 시 onAddTrack을 호출한다", async () => {
 		const onAddTrack = vi.fn();
 		render(<TimelineToolbar {...defaultProps} onAddTrack={onAddTrack} />);
-		await userEvent.click(screen.getByRole("button", { name: /트랙 추가/ }));
+		await userEvent.click(screen.getByRole("button", { name: "트랙 추가" }));
 		expect(onAddTrack).toHaveBeenCalled();
 	});
 

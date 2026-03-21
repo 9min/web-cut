@@ -34,6 +34,6 @@ describe("Timeline", () => {
 
 	it("타임라인 도구 모음을 표시한다", () => {
 		render(<Timeline />);
-		expect(screen.getByRole("button", { name: /트랙 추가/ })).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "트랙 추가" })).toBeInTheDocument();
 	});
 });
