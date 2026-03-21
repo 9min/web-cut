@@ -21,6 +21,8 @@ export function Timeline() {
 	const selectClip = useTimelineStore((s) => s.selectClip);
 	const splitClip = useTimelineStore((s) => s.splitClip);
 	const removeClip = useTimelineStore((s) => s.removeClip);
+	const removeTextClip = useTimelineStore((s) => s.removeTextClip);
+	const addTextTrack = useTimelineStore((s) => s.addTextTrack);
 	const currentTime = usePlaybackStore((s) => s.currentTime);
 	const seek = usePlaybackStore((s) => s.seek);
 	const setDuration = usePlaybackStore((s) => s.setDuration);
@@ -55,16 +57,24 @@ export function Timeline() {
 			name,
 			type: "video",
 			clips: [],
+			textClips: [],
 			muted: false,
 			locked: false,
 			order: currentTracks.length,
 		});
 	}, [addTrack, pushSnapshot]);
 
+	const handleAddTextTrack = useCallback(() => {
+		pushSnapshot();
+		addTextTrack();
+	}, [addTextTrack, pushSnapshot]);
+
 	const handleSplit = useCallback(() => {
 		const time = usePlaybackStore.getState().currentTime;
 		const { selectedClipId: clipId, tracks: allTracks } = useTimelineStore.getState();
 		if (!clipId) return;
+
+		// text 트랙의 TextClip은 분할하지 않음
 		const track = allTracks.find((t) => t.clips.some((c) => c.id === clipId));
 		if (!track) return;
 		pushSnapshot();
@@ -74,11 +84,22 @@ export function Timeline() {
 	const handleDelete = useCallback(() => {
 		const { selectedClipId: clipId, tracks: allTracks } = useTimelineStore.getState();
 		if (!clipId) return;
+
+		// 먼저 일반 클립에서 찾기
 		const track = allTracks.find((t) => t.clips.some((c) => c.id === clipId));
-		if (!track) return;
-		pushSnapshot();
-		removeClip(track.id, clipId);
-	}, [removeClip, pushSnapshot]);
+		if (track) {
+			pushSnapshot();
+			removeClip(track.id, clipId);
+			return;
+		}
+
+		// 텍스트 클립에서 찾기
+		const textTrack = allTracks.find((t) => t.textClips.some((tc) => tc.id === clipId));
+		if (textTrack) {
+			pushSnapshot();
+			removeTextClip(textTrack.id, clipId);
+		}
+	}, [removeClip, removeTextClip, pushSnapshot]);
 
 	const handleScroll = useCallback(() => {
 		if (scrollRef.current) {
@@ -92,6 +113,7 @@ export function Timeline() {
 				<PlaybackControls />
 				<TimelineToolbar
 					onAddTrack={handleAddTrack}
+					onAddTextTrack={handleAddTextTrack}
 					onZoomIn={zoomIn}
 					onZoomOut={zoomOut}
 					onSplit={handleSplit}

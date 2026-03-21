@@ -1,11 +1,14 @@
 import { create } from "zustand";
 import { DEFAULT_CLIP_FILTER } from "@/constants/filter";
+import { TEXT_MAX_LENGTH } from "@/constants/textOverlay";
 import type { ClipFilter } from "@/types/filter";
+import type { TextClip, TextOverlay } from "@/types/textOverlay";
 import type { Clip, Track } from "@/types/timeline";
 import type { Transition } from "@/types/transition";
 import { splitClipAt, trimClip } from "@/utils/editUtils";
 import { isDefaultFilter } from "@/utils/filterUtils";
 import { generateId } from "@/utils/generateId";
+import { sanitizeTextInput } from "@/utils/textSanitizer";
 import { findDropIndex, reorderAndCompact } from "@/utils/timelineUtils";
 
 interface TimelineState {
@@ -36,6 +39,25 @@ interface TimelineState {
 	updateTransition: (trackId: string, clipId: string, updates: Partial<Transition>) => void;
 	updateFilter: (trackId: string, clipId: string, updates: Partial<ClipFilter>) => void;
 	resetFilter: (trackId: string, clipId: string) => void;
+	addTextTrack: () => void;
+	addTextClip: (trackId: string, textClip: TextClip) => void;
+	updateTextClip: (
+		trackId: string,
+		textClipId: string,
+		updates: Partial<Pick<TextClip, "startTime" | "duration" | "name">>,
+	) => void;
+	updateTextClipOverlay: (
+		trackId: string,
+		textClipId: string,
+		updates: Partial<TextOverlay>,
+	) => void;
+	removeTextClip: (trackId: string, textClipId: string) => void;
+	moveTextClip: (
+		fromTrackId: string,
+		textClipId: string,
+		toTrackId: string,
+		newStartTime: number,
+	) => void;
 	reset: () => void;
 }
 
@@ -69,6 +91,7 @@ const DEFAULT_TRACK: Track = {
 	name: "타임라인 1",
 	type: "video",
 	clips: [],
+	textClips: [],
 	muted: false,
 	locked: false,
 	order: 0,
@@ -195,8 +218,16 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
 
 		const [left, right] = result;
 		// 원본의 outTransition을 오른쪽 분할 클립에 이전, 필터는 양쪽에 복사
-		const leftClip: Clip = { ...left, outTransition: undefined, filter: clip.filter };
-		const rightClip: Clip = { ...right, outTransition: clip.outTransition, filter: clip.filter };
+		const leftClip: Clip = {
+			...left,
+			outTransition: undefined,
+			filter: clip.filter,
+		};
+		const rightClip: Clip = {
+			...right,
+			outTransition: clip.outTransition,
+			filter: clip.filter,
+		};
 		set((state) => ({
 			tracks: state.tracks.map((t) =>
 				t.id === trackId
@@ -324,6 +355,116 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
 					: t,
 			),
 		}));
+	},
+
+	addTextTrack: () => {
+		const { tracks } = get();
+		const textTrackCount = tracks.filter((t) => t.type === "text").length;
+		const name = `텍스트 ${textTrackCount + 1}`;
+		set((state) => ({
+			tracks: [
+				...state.tracks,
+				{
+					id: generateId(),
+					name,
+					type: "text",
+					clips: [],
+					textClips: [],
+					muted: false,
+					locked: false,
+					order: state.tracks.length,
+				},
+			],
+		}));
+	},
+
+	addTextClip: (trackId, textClip) => {
+		set((state) => ({
+			tracks: state.tracks.map((t) =>
+				t.id === trackId ? { ...t, textClips: [...t.textClips, textClip] } : t,
+			),
+		}));
+	},
+
+	updateTextClip: (trackId, textClipId, updates) => {
+		set((state) => ({
+			tracks: state.tracks.map((t) =>
+				t.id === trackId
+					? {
+							...t,
+							textClips: t.textClips.map((tc) =>
+								tc.id === textClipId ? { ...tc, ...updates } : tc,
+							),
+						}
+					: t,
+			),
+		}));
+	},
+
+	updateTextClipOverlay: (trackId, textClipId, updates) => {
+		set((state) => ({
+			tracks: state.tracks.map((t) =>
+				t.id === trackId
+					? {
+							...t,
+							textClips: t.textClips.map((tc) => {
+								if (tc.id !== textClipId) return tc;
+								const sanitizedUpdates =
+									updates.content !== undefined
+										? { ...updates, content: sanitizeTextInput(updates.content, TEXT_MAX_LENGTH) }
+										: updates;
+								return { ...tc, overlay: { ...tc.overlay, ...sanitizedUpdates } };
+							}),
+						}
+					: t,
+			),
+		}));
+	},
+
+	removeTextClip: (trackId, textClipId) => {
+		const { selectedClipId } = get();
+		set((state) => ({
+			tracks: state.tracks.map((t) =>
+				t.id === trackId
+					? { ...t, textClips: t.textClips.filter((tc) => tc.id !== textClipId) }
+					: t,
+			),
+			selectedClipId: selectedClipId === textClipId ? null : selectedClipId,
+		}));
+	},
+
+	moveTextClip: (fromTrackId, textClipId, toTrackId, newStartTime) => {
+		const fromTrack = get().tracks.find((t) => t.id === fromTrackId);
+		const textClip = fromTrack?.textClips.find((tc) => tc.id === textClipId);
+		if (!textClip) return;
+
+		if (fromTrackId === toTrackId) {
+			set((state) => ({
+				tracks: state.tracks.map((t) =>
+					t.id === fromTrackId
+						? {
+								...t,
+								textClips: t.textClips.map((tc) =>
+									tc.id === textClipId ? { ...tc, startTime: newStartTime } : tc,
+								),
+							}
+						: t,
+				),
+			}));
+		} else {
+			const movedClip = { ...textClip, trackId: toTrackId, startTime: newStartTime };
+			set((state) => ({
+				tracks: state.tracks.map((t) => {
+					if (t.id === fromTrackId) {
+						return { ...t, textClips: t.textClips.filter((tc) => tc.id !== textClipId) };
+					}
+					if (t.id === toTrackId) {
+						return { ...t, textClips: [...t.textClips, movedClip] };
+					}
+					return t;
+				}),
+			}));
+		}
 	},
 
 	reset: () => set(initialState),

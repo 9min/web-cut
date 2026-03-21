@@ -49,7 +49,7 @@ export function useExport() {
 
 			// FFmpeg 실행
 			setStatus("encoding");
-			const args = buildFFmpegArgs(clips, assetFileMap, res.width, res.height);
+			const args = buildFFmpegArgs(clips, assetFileMap, res.width, res.height, tracks);
 
 			if (args.length === 0) {
 				setError("FFmpeg 명령어 생성에 실패했습니다.");

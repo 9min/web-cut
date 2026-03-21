@@ -1,3 +1,4 @@
+import type { TextClip } from "@/types/textOverlay";
 import type { Clip, Track } from "@/types/timeline";
 import type { TransitionType } from "@/types/transition";
 import { getTransitionOverlapRange, getTransitionProgress } from "./transitionUtils";
@@ -73,6 +74,28 @@ export function getVisibleClipsAtTime(tracks: Track[], currentTime: number): Vis
 					trackId: track.id,
 					localTime: clip.inPoint + elapsed,
 				});
+			}
+		}
+	}
+
+	return result;
+}
+
+export interface VisibleTextClip {
+	textClip: TextClip;
+	trackId: string;
+}
+
+export function getVisibleTextClipsAtTime(tracks: Track[], currentTime: number): VisibleTextClip[] {
+	const result: VisibleTextClip[] = [];
+
+	for (const track of tracks) {
+		if (track.type !== "text") continue;
+
+		for (const textClip of track.textClips) {
+			const end = textClip.startTime + textClip.duration;
+			if (currentTime >= textClip.startTime && currentTime < end) {
+				result.push({ textClip, trackId: track.id });
 			}
 		}
 	}

@@ -22,6 +22,7 @@ function makeTrack(clips: Clip[], overrides: Partial<Track> = {}): Track {
 		name: "비디오 1",
 		type: "video",
 		clips,
+		textClips: [],
 		muted: false,
 		locked: false,
 		order: 0,
@@ -43,6 +44,15 @@ describe("getSortedVideoClips", () => {
 		const tracks = [
 			makeTrack([makeClip()], { type: "video" }),
 			makeTrack([makeClip({ id: "audio-clip" })], { id: "t2", type: "audio" }),
+		];
+		const result = getSortedVideoClips(tracks);
+		expect(result).toHaveLength(1);
+	});
+
+	it("텍스트 트랙은 제외한다", () => {
+		const tracks = [
+			makeTrack([makeClip()], { type: "video" }),
+			makeTrack([], { id: "t2", type: "text" }),
 		];
 		const result = getSortedVideoClips(tracks);
 		expect(result).toHaveLength(1);
@@ -200,5 +210,129 @@ describe("buildFFmpegArgs", () => {
 		const vfIndex = args.indexOf("-vf");
 		const vfValue = args[vfIndex + 1] ?? "";
 		expect(vfValue).not.toContain("eq=");
+	});
+
+	it("독립 텍스트 클립이 있으면 단일 클립에 drawtext+enable 필터를 추가한다", () => {
+		const clips = [makeClip({ assetId: "a1", inPoint: 0, outPoint: 10 })];
+		const assetFileMap = new Map([["a1", "input_a1.mp4"]]);
+		const tracks: Track[] = [
+			makeTrack(clips),
+			{
+				id: "tt1",
+				name: "텍스트 1",
+				type: "text",
+				clips: [],
+				textClips: [
+					{
+						id: "tc1",
+						trackId: "tt1",
+						name: "자막",
+						startTime: 2,
+						duration: 3,
+						overlay: {
+							content: "자막",
+							x: 50,
+							y: 80,
+							fontSize: 36,
+							fontColor: "#FFFFFF",
+							opacity: 100,
+						},
+					},
+				],
+				muted: false,
+				locked: false,
+				order: 1,
+			},
+		];
+		const args = buildFFmpegArgs(clips, assetFileMap, 1920, 1080, tracks);
+
+		const vfIndex = args.indexOf("-vf");
+		const vfValue = args[vfIndex + 1] ?? "";
+		expect(vfValue).toContain("drawtext=");
+		expect(vfValue).toContain("enable='between(t,2.000,5.000)'");
+	});
+
+	it("독립 텍스트 클립이 있으면 concat 모드에서 텍스트 필터를 체이닝한다", () => {
+		const clips = [
+			makeClip({ id: "c1", assetId: "a1", startTime: 0, inPoint: 0, outPoint: 5 }),
+			makeClip({ id: "c2", assetId: "a2", startTime: 5, inPoint: 0, outPoint: 5 }),
+		];
+		const assetFileMap = new Map([
+			["a1", "input_a1.mp4"],
+			["a2", "input_a2.mp4"],
+		]);
+		const tracks: Track[] = [
+			makeTrack(clips),
+			{
+				id: "tt1",
+				name: "텍스트 1",
+				type: "text",
+				clips: [],
+				textClips: [
+					{
+						id: "tc1",
+						trackId: "tt1",
+						name: "자막",
+						startTime: 1,
+						duration: 2,
+						overlay: {
+							content: "자막",
+							x: 50,
+							y: 80,
+							fontSize: 24,
+							fontColor: "#FF0000",
+							opacity: 80,
+						},
+					},
+				],
+				muted: false,
+				locked: false,
+				order: 1,
+			},
+		];
+		const args = buildFFmpegArgs(clips, assetFileMap, 1920, 1080, tracks);
+
+		const filterComplex = args[args.indexOf("-filter_complex") + 1] ?? "";
+		expect(filterComplex).toContain("drawtext=");
+		expect(filterComplex).toContain("enable='between(t,1.000,3.000)'");
+	});
+
+	it("텍스트 클립 content가 빈 문자열이면 drawtext를 추가하지 않는다", () => {
+		const clips = [makeClip({ assetId: "a1", inPoint: 0, outPoint: 10 })];
+		const assetFileMap = new Map([["a1", "input_a1.mp4"]]);
+		const tracks: Track[] = [
+			makeTrack(clips),
+			{
+				id: "tt1",
+				name: "텍스트 1",
+				type: "text",
+				clips: [],
+				textClips: [
+					{
+						id: "tc1",
+						trackId: "tt1",
+						name: "빈 자막",
+						startTime: 0,
+						duration: 3,
+						overlay: {
+							content: "",
+							x: 50,
+							y: 80,
+							fontSize: 36,
+							fontColor: "#FFFFFF",
+							opacity: 100,
+						},
+					},
+				],
+				muted: false,
+				locked: false,
+				order: 1,
+			},
+		];
+		const args = buildFFmpegArgs(clips, assetFileMap, 1920, 1080, tracks);
+
+		const vfIndex = args.indexOf("-vf");
+		const vfValue = args[vfIndex + 1] ?? "";
+		expect(vfValue).not.toContain("drawtext=");
 	});
 });

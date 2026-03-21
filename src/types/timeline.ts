@@ -1,7 +1,8 @@
 import type { ClipFilter } from "./filter";
+import type { TextClip } from "./textOverlay";
 import type { Transition } from "./transition";
 
-export type TrackType = "video" | "audio";
+export type TrackType = "video" | "audio" | "text";
 
 export interface Clip {
 	id: string;
@@ -21,6 +22,7 @@ export interface Track {
 	name: string;
 	type: TrackType;
 	clips: Clip[];
+	textClips: TextClip[];
 	muted: boolean;
 	locked: boolean;
 	order: number;

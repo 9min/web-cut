@@ -1,6 +1,7 @@
 export const DND_TYPES = {
 	MEDIA_ITEM: "media-item",
 	TIMELINE_CLIP: "timeline-clip",
+	TIMELINE_TEXT_CLIP: "timeline-text-clip",
 } as const;
 
 export interface MediaDragData {
@@ -14,4 +15,10 @@ export interface ClipDragData {
 	trackId: string;
 }
 
-export type DragData = MediaDragData | ClipDragData;
+export interface TextClipDragData {
+	type: typeof DND_TYPES.TIMELINE_TEXT_CLIP;
+	textClipId: string;
+	trackId: string;
+}
+
+export type DragData = MediaDragData | ClipDragData | TextClipDragData;

@@ -22,8 +22,12 @@ export function findOverlappingClips(clips: Clip[], target: Clip): Clip[] {
 }
 
 export function getTrackDuration(track: Track): number {
-	if (track.clips.length === 0) return 0;
-	return Math.max(...track.clips.map(getClipEnd));
+	const clipEnd = track.clips.length > 0 ? Math.max(...track.clips.map(getClipEnd)) : 0;
+	const textClipEnd =
+		track.textClips.length > 0
+			? Math.max(...track.textClips.map((tc) => tc.startTime + tc.duration))
+			: 0;
+	return Math.max(clipEnd, textClipEnd);
 }
 
 export function getTimelineDuration(tracks: Track[]): number {

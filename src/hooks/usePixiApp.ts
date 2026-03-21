@@ -31,9 +31,18 @@ export function usePixiApp(containerRef: React.RefObject<HTMLDivElement | null>)
 				setReady(true);
 			});
 
+		// 컨테이너 크기 변경 시 PixiJS 캔버스도 리사이즈
+		const ro = new ResizeObserver(() => {
+			if (appRef.current) {
+				appRef.current.resize();
+			}
+		});
+		ro.observe(container);
+
 		return () => {
 			cancelled = true;
 			setReady(false);
+			ro.disconnect();
 			if (canvasRef.current?.parentNode) {
 				canvasRef.current.parentNode.removeChild(canvasRef.current);
 				canvasRef.current = null;
