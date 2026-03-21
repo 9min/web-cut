@@ -160,7 +160,7 @@ describe("buildFFmpegArgs", () => {
 
 		const vfIndex = args.indexOf("-vf");
 		const vfValue = args[vfIndex + 1] ?? "";
-		expect(vfValue).toContain("eq=brightness=0.5:contrast=1:saturation=1");
+		expect(vfValue).toContain("eq=brightness=0.5000:contrast=1.0000:saturation=1.0000");
 	});
 
 	it("concat 모드에서 필터가 있는 클립에 eq를 추가한다", () => {
@@ -182,7 +182,7 @@ describe("buildFFmpegArgs", () => {
 		const args = buildFFmpegArgs(clips, assetFileMap, 1920, 1080);
 
 		const filterComplex = args[args.indexOf("-filter_complex") + 1] ?? "";
-		expect(filterComplex).toContain("eq=brightness=-0.5:contrast=1.5:saturation=1");
+		expect(filterComplex).toContain("eq=brightness=-0.5000:contrast=1.5000:saturation=1.0000");
 	});
 
 	it("필터가 기본값이면 eq를 추가하지 않는다", () => {

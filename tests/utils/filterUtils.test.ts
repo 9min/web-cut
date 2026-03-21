@@ -140,17 +140,17 @@ describe("buildEqFilterString", () => {
 		const filter: ClipFilter = { brightness: 50, contrast: 0, saturation: 0 };
 		const result = buildEqFilterString(filter);
 		expect(result).toContain("eq=");
-		expect(result).toContain("brightness=0.5");
-		expect(result).toContain("contrast=1");
-		expect(result).toContain("saturation=1");
+		expect(result).toContain("brightness=0.5000");
+		expect(result).toContain("contrast=1.0000");
+		expect(result).toContain("saturation=1.0000");
 	});
 
 	it("모든 값이 변경된 경우 eq 문자열을 생성한다", () => {
 		const filter: ClipFilter = { brightness: 50, contrast: -50, saturation: 100 };
 		const result = buildEqFilterString(filter);
 		expect(result).toContain("eq=");
-		expect(result).toContain("brightness=0.5");
-		expect(result).toContain("contrast=0.5");
-		expect(result).toContain("saturation=2");
+		expect(result).toContain("brightness=0.5000");
+		expect(result).toContain("contrast=0.5000");
+		expect(result).toContain("saturation=2.0000");
 	});
 });

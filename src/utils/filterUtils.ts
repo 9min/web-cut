@@ -45,9 +45,9 @@ export function toFFmpegSaturation(value: number): number {
 export function buildEqFilterString(filter: ClipFilter): string | null {
 	if (isDefaultFilter(filter)) return null;
 
-	const brightness = toFFmpegBrightness(filter.brightness);
-	const contrast = toFFmpegContrast(filter.contrast);
-	const saturation = toFFmpegSaturation(filter.saturation);
+	const brightness = toFFmpegBrightness(filter.brightness).toFixed(4);
+	const contrast = toFFmpegContrast(filter.contrast).toFixed(4);
+	const saturation = toFFmpegSaturation(filter.saturation).toFixed(4);
 
 	return `eq=brightness=${brightness}:contrast=${contrast}:saturation=${saturation}`;
 }
