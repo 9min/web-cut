@@ -8,7 +8,8 @@ import { TextOverlayPanel } from "./TextOverlayPanel";
 import { TransformPanel } from "./TransformPanel";
 
 export function InspectorPanel() {
-	const { tracks, selectedClipId } = useTimelineStore();
+	const tracks = useTimelineStore((s) => s.tracks);
+	const selectedClipId = useTimelineStore((s) => s.getSelectedClipId());
 
 	if (!selectedClipId) {
 		return (

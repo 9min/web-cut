@@ -1,3 +1,4 @@
+import { PROJECT_ACCEPT_TYPES, saveFile } from "@/services/filePickerService";
 import { useMediaStore } from "@/stores/useMediaStore";
 import { useProjectStore } from "@/stores/useProjectStore";
 import { useTimelineStore } from "@/stores/useTimelineStore";
@@ -20,6 +21,37 @@ interface ProjectData {
 	savedAt: number;
 }
 
+const CURRENT_VERSION = "2.0";
+
+type MigrationFn = (data: Record<string, unknown>) => Record<string, unknown>;
+
+/** 버전별 마이그레이션 함수 배열 */
+const MIGRATIONS: { from: string; to: string; migrate: MigrationFn }[] = [
+	{
+		from: "1.0",
+		to: "2.0",
+		migrate: (data) => {
+			// v1.0 → v2.0: selectedClipIds 배열 지원, keyframes 필드 추가
+			return { ...data, version: "2.0" };
+		},
+	},
+];
+
+/** 프로젝트 데이터에 마이그레이션을 적용한다 */
+export function applyMigrations(data: Record<string, unknown>): Record<string, unknown> {
+	let current = data;
+	let version = (current.version as string) || "1.0";
+
+	for (const migration of MIGRATIONS) {
+		if (version === migration.from) {
+			current = migration.migrate(current);
+			version = migration.to;
+		}
+	}
+
+	return current;
+}
+
 /** 3개 스토어 상태를 ProjectData로 직렬화한다 (objectUrl 제외) */
 export function serializeProject(): ProjectData {
 	const { name, width, height, fps } = useProjectStore.getState();
@@ -35,7 +67,7 @@ export function serializeProject(): ProjectData {
 	}));
 
 	return {
-		version: "1.0",
+		version: CURRENT_VERSION,
 		project: { name, width, height, fps },
 		timeline: { tracks },
 		mediaRefs,
@@ -57,7 +89,7 @@ export function deserializeProject(json: string): void {
 		throw new Error("잘못된 프로젝트 데이터입니다.");
 	}
 
-	const d = data as Record<string, unknown>;
+	let d = data as Record<string, unknown>;
 
 	if (!d.version || typeof d.version !== "string") {
 		throw new Error("버전 정보가 없습니다.");
@@ -70,6 +102,9 @@ export function deserializeProject(json: string): void {
 	if (!d.timeline || typeof d.timeline !== "object") {
 		throw new Error("타임라인 데이터가 없습니다.");
 	}
+
+	// 구버전 데이터 마이그레이션
+	d = applyMigrations(d);
 
 	const project = d.project as Record<string, unknown>;
 	const timeline = d.timeline as Record<string, unknown>;
@@ -104,14 +139,10 @@ export function deserializeProject(json: string): void {
 	}
 }
 
-/** Blob으로 변환 후 a.click() 다운로드 */
-export function downloadProjectFile(data: ProjectData): void {
+/** JSON Blob 생성 후 파일 피커(또는 폴백)로 다운로드 */
+export async function downloadProjectFile(data: ProjectData): Promise<void> {
 	const json = JSON.stringify(data, null, 2);
 	const blob = new Blob([json], { type: "application/json" });
-	const url = URL.createObjectURL(blob);
-	const a = document.createElement("a");
-	a.href = url;
-	a.download = `${data.project.name || "project"}.webcut.json`;
-	a.click();
-	URL.revokeObjectURL(url);
+	const suggestedName = `${data.project.name || "project"}.webcut.json`;
+	await saveFile(blob, suggestedName, PROJECT_ACCEPT_TYPES);
 }

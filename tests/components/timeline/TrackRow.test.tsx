@@ -12,7 +12,14 @@ describe("TrackRow", () => {
 
 	it("트랙 이름을 렌더링한다", () => {
 		const track = createTestTrack({ name: "비디오 1" });
-		render(<TrackRow track={track} zoom={100} selectedClipId={null} onSelectClip={vi.fn()} />);
+		render(
+			<TrackRow
+				track={track}
+				zoom={100}
+				selectedClipIds={new Set<string>()}
+				onSelectClip={vi.fn()}
+			/>,
+		);
 		expect(screen.getByText("비디오 1")).toBeInTheDocument();
 	});
 
@@ -20,13 +27,27 @@ describe("TrackRow", () => {
 		const track = createTestTrack({
 			clips: [createTestClip({ name: "클립 A" })],
 		});
-		render(<TrackRow track={track} zoom={100} selectedClipId={null} onSelectClip={vi.fn()} />);
+		render(
+			<TrackRow
+				track={track}
+				zoom={100}
+				selectedClipIds={new Set<string>()}
+				onSelectClip={vi.fn()}
+			/>,
+		);
 		expect(screen.getByText("클립 A")).toBeInTheDocument();
 	});
 
 	it("빈 트랙을 렌더링한다", () => {
 		const track = createTestTrack({ clips: [] });
-		render(<TrackRow track={track} zoom={100} selectedClipId={null} onSelectClip={vi.fn()} />);
+		render(
+			<TrackRow
+				track={track}
+				zoom={100}
+				selectedClipIds={new Set<string>()}
+				onSelectClip={vi.fn()}
+			/>,
+		);
 		expect(screen.getByTestId("track-row")).toBeInTheDocument();
 	});
 
@@ -37,7 +58,7 @@ describe("TrackRow", () => {
 			<TrackRow
 				track={track}
 				zoom={100}
-				selectedClipId={null}
+				selectedClipIds={new Set<string>()}
 				onSelectClip={vi.fn()}
 				onAddTextClip={onAddTextClip}
 			/>,
@@ -51,7 +72,7 @@ describe("TrackRow", () => {
 			<TrackRow
 				track={track}
 				zoom={100}
-				selectedClipId={null}
+				selectedClipIds={new Set<string>()}
 				onSelectClip={vi.fn()}
 				onAddTextClip={vi.fn()}
 			/>,
@@ -68,7 +89,7 @@ describe("TrackRow", () => {
 			<TrackRow
 				track={track}
 				zoom={100}
-				selectedClipId={null}
+				selectedClipIds={new Set<string>()}
 				onSelectClip={vi.fn()}
 				onAddTextClip={onAddTextClip}
 			/>,
@@ -84,7 +105,7 @@ describe("TrackRow", () => {
 			<TrackRow
 				track={track}
 				zoom={100}
-				selectedClipId={null}
+				selectedClipIds={new Set<string>()}
 				onSelectClip={vi.fn()}
 				onRemoveTrack={vi.fn()}
 			/>,
@@ -100,7 +121,7 @@ describe("TrackRow", () => {
 			<TrackRow
 				track={track}
 				zoom={100}
-				selectedClipId={null}
+				selectedClipIds={new Set<string>()}
 				onSelectClip={vi.fn()}
 				onRemoveTrack={onRemoveTrack}
 			/>,

@@ -55,7 +55,7 @@ function handleMediaDrop(
 	const duration = asset.metadata && "duration" in asset.metadata ? asset.metadata.duration : 5;
 	const startTime = findInsertPosition(track.clips, 0, duration);
 
-	useHistoryStore.getState().pushSnapshot();
+	useHistoryStore.getState().pushSnapshot("미디어 추가");
 	addClip(track.id, {
 		id: generateId(),
 		trackId: track.id,
@@ -140,7 +140,7 @@ function handleClipMove(
 		: calculateDropPosition(ctx.clip.startTime, ctx.clip.duration, deltaX, zoom, ctx.otherClips)
 				.position;
 
-	useHistoryStore.getState().pushSnapshot();
+	useHistoryStore.getState().pushSnapshot("클립 이동");
 	useTimelineStore.getState().insertClipAt(data.trackId, data.clipId, dropTrackId, newStartTime);
 }
 
@@ -161,7 +161,7 @@ function handleTextClipMove(
 
 	const newStartTime = Math.max(0, textClip.startTime + deltaX / zoom);
 
-	useHistoryStore.getState().pushSnapshot();
+	useHistoryStore.getState().pushSnapshot("텍스트 클립 이동");
 	useTimelineStore
 		.getState()
 		.moveTextClip(data.trackId, data.textClipId, dropTrackId, newStartTime);

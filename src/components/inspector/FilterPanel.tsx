@@ -19,7 +19,7 @@ interface FilterPanelProps {
 
 export function FilterPanel({ trackId, clipId, filter }: FilterPanelProps) {
 	const { updateFilter, resetFilter } = useTimelineStore();
-	const { scheduleSnapshot } = useDebouncedSnapshot();
+	const { scheduleSnapshot } = useDebouncedSnapshot("필터 변경");
 
 	const handleChange = useCallback(
 		(type: FilterType, value: number) => {
@@ -30,7 +30,7 @@ export function FilterPanel({ trackId, clipId, filter }: FilterPanelProps) {
 	);
 
 	const handleReset = useCallback(() => {
-		useHistoryStore.getState().pushSnapshot();
+		useHistoryStore.getState().pushSnapshot("필터 초기화");
 		resetFilter(trackId, clipId);
 	}, [trackId, clipId, resetFilter]);
 

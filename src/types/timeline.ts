@@ -1,4 +1,5 @@
 import type { ClipFilter } from "./filter";
+import type { ClipKeyframes } from "./keyframe";
 import type { TextClip } from "./textOverlay";
 import type { Transition } from "./transition";
 
@@ -25,6 +26,7 @@ export interface Clip {
 	filter?: ClipFilter;
 	volume?: number;
 	transform?: ClipTransform;
+	keyframes?: ClipKeyframes;
 }
 
 export interface Track {

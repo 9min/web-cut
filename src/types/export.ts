@@ -1,4 +1,12 @@
-export type ExportStatus = "idle" | "preparing" | "encoding" | "done" | "error";
+export type ExportStatus =
+	| "idle"
+	| "preparing"
+	| "writing-files"
+	| "encoding"
+	| "finalizing"
+	| "done"
+	| "error"
+	| "cancelled";
 
 export interface ExportResolution {
 	label: string;

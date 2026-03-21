@@ -1,7 +1,31 @@
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile, toBlobURL } from "@ffmpeg/util";
+import { MP4_ACCEPT_TYPES, saveFile, WEBM_ACCEPT_TYPES } from "./filePickerService";
 
 let ffmpeg: FFmpeg | null = null;
+
+const FFMPEG_BASE_URL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm";
+const CACHE_NAME = "webcut-ffmpeg-v1";
+
+/** Cache API를 활용하여 FFmpeg WASM 바이너리를 캐싱한다 */
+async function getCachedBlobURL(url: string, mimeType: string): Promise<string> {
+	try {
+		const cache = await caches.open(CACHE_NAME);
+		const cached = await cache.match(url);
+		if (cached) {
+			const blob = await cached.blob();
+			return URL.createObjectURL(blob);
+		}
+
+		const response = await fetch(url);
+		await cache.put(url, response.clone());
+		const blob = await response.blob();
+		return URL.createObjectURL(blob);
+	} catch {
+		// Cache API 미지원 시 폴백
+		return toBlobURL(url, mimeType);
+	}
+}
 
 export async function getFFmpeg(onProgress?: (progress: number) => void): Promise<FFmpeg> {
 	if (ffmpeg?.loaded) return ffmpeg;
@@ -14,11 +38,9 @@ export async function getFFmpeg(onProgress?: (progress: number) => void): Promis
 		});
 	}
 
-	const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm";
-
 	await ffmpeg.load({
-		coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
-		wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+		coreURL: await getCachedBlobURL(`${FFMPEG_BASE_URL}/ffmpeg-core.js`, "text/javascript"),
+		wasmURL: await getCachedBlobURL(`${FFMPEG_BASE_URL}/ffmpeg-core.wasm`, "application/wasm"),
 	});
 
 	return ffmpeg;
@@ -31,16 +53,18 @@ export async function writeInputFile(ff: FFmpeg, fileName: string, url: string):
 
 export async function runExport(ff: FFmpeg, args: string[]): Promise<Uint8Array> {
 	await ff.exec(args);
-	const data = await ff.readFile("output.mp4");
+	// 출력 파일명은 args의 마지막 요소
+	const outputFile = args[args.length - 1] ?? "output.mp4";
+	const data = await ff.readFile(outputFile);
 	return data as Uint8Array;
 }
 
-export function downloadBlob(data: Uint8Array, fileName: string): void {
-	const blob = new Blob([new Uint8Array(data)], { type: "video/mp4" });
-	const url = URL.createObjectURL(blob);
-	const a = document.createElement("a");
-	a.href = url;
-	a.download = fileName;
-	a.click();
-	URL.revokeObjectURL(url);
+export async function downloadBlob(
+	data: Uint8Array,
+	fileName: string,
+	mimeType = "video/mp4",
+): Promise<void> {
+	const blob = new Blob([new Uint8Array(data)], { type: mimeType });
+	const acceptTypes = mimeType.includes("webm") ? WEBM_ACCEPT_TYPES : MP4_ACCEPT_TYPES;
+	await saveFile(blob, fileName, acceptTypes);
 }

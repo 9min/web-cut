@@ -24,7 +24,7 @@ interface TransformPanelProps {
 export function TransformPanel({ trackId, clipId, transform }: TransformPanelProps) {
 	const updateTransform = useTimelineStore((s) => s.updateTransform);
 	const resetTransform = useTimelineStore((s) => s.resetTransform);
-	const { scheduleSnapshot } = useDebouncedSnapshot();
+	const { scheduleSnapshot } = useDebouncedSnapshot("트랜스폼 변경");
 
 	const handleChange = useCallback(
 		(partial: Partial<ClipTransform>) => {
@@ -35,7 +35,7 @@ export function TransformPanel({ trackId, clipId, transform }: TransformPanelPro
 	);
 
 	const handleReset = useCallback(() => {
-		useHistoryStore.getState().pushSnapshot();
+		useHistoryStore.getState().pushSnapshot("트랜스폼 초기화");
 		resetTransform(trackId, clipId);
 	}, [trackId, clipId, resetTransform]);
 

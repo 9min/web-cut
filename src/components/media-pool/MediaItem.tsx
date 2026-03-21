@@ -68,6 +68,7 @@ export function MediaItem({ asset, onRemove }: MediaItemProps) {
 				onClick={() => onRemove(asset.id)}
 				className="shrink-0 rounded p-1 text-gray-500 hover:bg-gray-700 hover:text-white"
 				aria-label="삭제"
+				title="미디어 삭제"
 			>
 				<X size={14} />
 			</button>

@@ -1,16 +1,20 @@
 import { useDraggable } from "@dnd-kit/core";
 import { memo, useCallback } from "react";
+import { useMediaStore } from "@/stores/useMediaStore";
 import { DND_TYPES } from "@/types/dnd";
 import type { Clip } from "@/types/timeline";
 import { clipBlockMap } from "@/utils/clipBlockRefs";
 import { cn } from "@/utils/cn";
 import { timeToPixel } from "@/utils/timelineUtils";
+import { TrimHandle } from "./TrimHandle";
+import { WaveformDisplay } from "./WaveformDisplay";
 
 interface AudioClipBlockProps {
 	clip: Clip;
 	zoom: number;
 	isSelected: boolean;
 	onSelect: (clipId: string) => void;
+	onContextMenu?: (clipId: string, trackId: string, x: number, y: number) => void;
 }
 
 export const AudioClipBlock = memo(function AudioClipBlock({
@@ -18,7 +22,9 @@ export const AudioClipBlock = memo(function AudioClipBlock({
 	zoom,
 	isSelected,
 	onSelect,
+	onContextMenu: onCtxMenu,
 }: AudioClipBlockProps) {
+	const asset = useMediaStore((s) => s.assets.find((a) => a.id === clip.assetId));
 	const left = timeToPixel(clip.startTime, zoom);
 	const width = timeToPixel(clip.duration, zoom);
 
@@ -45,7 +51,7 @@ export const AudioClipBlock = memo(function AudioClipBlock({
 			type="button"
 			data-testid="audio-clip-block"
 			className={cn(
-				"absolute top-1 flex h-10 cursor-pointer items-center overflow-hidden rounded px-2 text-xs text-left",
+				"group absolute top-1 flex h-10 cursor-pointer items-center overflow-hidden rounded px-2 text-xs text-left",
 				isSelected ? "bg-green-600 ring-2 ring-green-400" : "bg-green-800 hover:bg-green-700",
 				isDragging && "opacity-80 shadow-lg ring-2 ring-green-500",
 			)}
@@ -57,10 +63,19 @@ export const AudioClipBlock = memo(function AudioClipBlock({
 				zIndex: isDragging ? 50 : undefined,
 			}}
 			onClick={() => onSelect(clip.id)}
+			onContextMenu={(e) => {
+				e.preventDefault();
+				onCtxMenu?.(clip.id, clip.trackId, e.clientX, e.clientY);
+			}}
 			{...listeners}
 			{...attributes}
 		>
-			<span className="truncate text-white">{clip.name}</span>
+			{asset && (
+				<WaveformDisplay assetId={clip.assetId} url={asset.objectUrl} width={width} height={40} />
+			)}
+			<TrimHandle trackId={clip.trackId} clipId={clip.id} edge="left" />
+			<span className="relative z-10 truncate text-white">{clip.name}</span>
+			<TrimHandle trackId={clip.trackId} clipId={clip.id} edge="right" />
 		</button>
 	);
 });

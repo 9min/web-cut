@@ -10,6 +10,7 @@ import { pixelToTime } from "@/utils/timelineUtils";
 import { AddTransitionButton } from "./AddTransitionButton";
 import { AudioClipBlock } from "./AudioClipBlock";
 import { ClipBlock } from "./ClipBlock";
+import { ClipContextMenu } from "./ClipContextMenu";
 import { DropIndicator } from "./DropIndicator";
 import { SnapIndicator } from "./SnapIndicator";
 import { TextClipBlock } from "./TextClipBlock";
@@ -18,7 +19,7 @@ import { TransitionBlock } from "./TransitionBlock";
 interface TrackRowProps {
 	track: Track;
 	zoom: number;
-	selectedClipId: string | null;
+	selectedClipIds: Set<string>;
 	onSelectClip: (clipId: string) => void;
 	dropIndicatorRef?: Ref<HTMLDivElement>;
 	snapIndicatorRef?: Ref<HTMLDivElement>;
@@ -31,7 +32,7 @@ interface TrackRowProps {
 export const TrackRow = memo(function TrackRow({
 	track,
 	zoom,
-	selectedClipId,
+	selectedClipIds,
 	onSelectClip,
 	dropIndicatorRef,
 	snapIndicatorRef,
@@ -41,7 +42,17 @@ export const TrackRow = memo(function TrackRow({
 	onToggleLocked,
 }: TrackRowProps) {
 	const [autoOpenClipId, setAutoOpenClipId] = useState<string | null>(null);
+	const [contextMenu, setContextMenu] = useState<{
+		clipId: string;
+		trackId: string;
+		x: number;
+		y: number;
+	} | null>(null);
 	const updateTextClip = useTimelineStore((s) => s.updateTextClip);
+
+	const handleContextMenu = useCallback((clipId: string, trackId: string, x: number, y: number) => {
+		setContextMenu({ clipId, trackId, x, y });
+	}, []);
 
 	const handleTransitionAdded = useCallback((clipId: string) => {
 		setAutoOpenClipId(clipId);
@@ -97,6 +108,7 @@ export const TrackRow = memo(function TrackRow({
 							onClick={() => onRemoveTrack(track.id)}
 							className="flex shrink-0 items-center justify-center rounded p-0.5 text-gray-500 opacity-0 hover:bg-gray-700 hover:text-red-400 group-hover/row:opacity-100"
 							aria-label="트랙 삭제"
+							title="트랙 삭제"
 							data-testid="remove-track-button"
 						>
 							<X size={10} />
@@ -113,6 +125,7 @@ export const TrackRow = memo(function TrackRow({
 								track.muted ? "text-yellow-400" : "text-gray-500",
 							)}
 							aria-label={track.muted ? "뮤트 해제" : "뮤트"}
+							title={track.muted ? "뮤트 해제" : "뮤트"}
 							data-testid="toggle-mute-button"
 						>
 							{track.muted ? <VolumeX size={11} /> : <Volume2 size={11} />}
@@ -127,6 +140,7 @@ export const TrackRow = memo(function TrackRow({
 								track.locked ? "text-red-400" : "text-gray-500",
 							)}
 							aria-label={track.locked ? "잠금 해제" : "잠금"}
+							title={track.locked ? "잠금 해제" : "잠금"}
 							data-testid="toggle-lock-button"
 						>
 							{track.locked ? <Lock size={11} /> : <Unlock size={11} />}
@@ -138,6 +152,7 @@ export const TrackRow = memo(function TrackRow({
 							onClick={handleAddTextClipClick}
 							className="flex shrink-0 items-center justify-center rounded p-0.5 text-gray-400 hover:bg-gray-700 hover:text-white"
 							aria-label="텍스트 클립 추가"
+							title="텍스트 클립 추가"
 							data-testid="add-text-clip-button"
 						>
 							<Plus size={11} />
@@ -162,7 +177,7 @@ export const TrackRow = memo(function TrackRow({
 							key={textClip.id}
 							textClip={textClip}
 							zoom={zoom}
-							isSelected={textClip.id === selectedClipId}
+							isSelected={selectedClipIds.has(textClip.id)}
 							onSelect={onSelectClip}
 							onResize={handleTextClipResize}
 						/>
@@ -173,8 +188,9 @@ export const TrackRow = memo(function TrackRow({
 							key={clip.id}
 							clip={clip}
 							zoom={zoom}
-							isSelected={clip.id === selectedClipId}
+							isSelected={selectedClipIds.has(clip.id)}
 							onSelect={onSelectClip}
+							onContextMenu={handleContextMenu}
 						/>
 					))
 				) : (
@@ -184,8 +200,9 @@ export const TrackRow = memo(function TrackRow({
 								key={clip.id}
 								clip={clip}
 								zoom={zoom}
-								isSelected={clip.id === selectedClipId}
+								isSelected={selectedClipIds.has(clip.id)}
 								onSelect={onSelectClip}
+								onContextMenu={handleContextMenu}
 							/>
 						))}
 						{sortedClips.map((clip, i) => {
@@ -226,6 +243,15 @@ export const TrackRow = memo(function TrackRow({
 					/>
 				)}
 			</div>
+			{contextMenu && (
+				<ClipContextMenu
+					clipId={contextMenu.clipId}
+					trackId={contextMenu.trackId}
+					x={contextMenu.x}
+					y={contextMenu.y}
+					onClose={() => setContextMenu(null)}
+				/>
+			)}
 		</div>
 	);
 });
