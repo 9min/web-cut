@@ -1,5 +1,6 @@
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { useState } from "react";
+import { InspectorPanel } from "@/components/inspector/InspectorPanel";
 import { EditorLayout } from "@/components/layout/EditorLayout";
 import { Header } from "@/components/layout/Header";
 import { MediaPool } from "@/components/media-pool/MediaPool";
@@ -53,6 +54,7 @@ export function App() {
 				sidebar={<MediaPool />}
 				preview={<PreviewPanel />}
 				timeline={<Timeline />}
+				inspector={<InspectorPanel />}
 			/>
 			<DragOverlay dropAnimation={null}>
 				{dragInfo && (

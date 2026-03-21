@@ -1,7 +1,10 @@
 import { create } from "zustand";
+import { DEFAULT_CLIP_FILTER } from "@/constants/filter";
+import type { ClipFilter } from "@/types/filter";
 import type { Clip, Track } from "@/types/timeline";
 import type { Transition } from "@/types/transition";
 import { splitClipAt, trimClip } from "@/utils/editUtils";
+import { isDefaultFilter } from "@/utils/filterUtils";
 import { generateId } from "@/utils/generateId";
 import { findDropIndex, reorderAndCompact } from "@/utils/timelineUtils";
 
@@ -31,6 +34,8 @@ interface TimelineState {
 	addTransition: (trackId: string, clipId: string, transition: Transition) => void;
 	removeTransition: (trackId: string, clipId: string) => void;
 	updateTransition: (trackId: string, clipId: string, updates: Partial<Transition>) => void;
+	updateFilter: (trackId: string, clipId: string, updates: Partial<ClipFilter>) => void;
+	resetFilter: (trackId: string, clipId: string) => void;
 	reset: () => void;
 }
 
@@ -61,7 +66,7 @@ function pushClipsRight(clips: Clip[], insertStart: number, insertEnd: number): 
 
 const DEFAULT_TRACK: Track = {
 	id: "default-video-track",
-	name: "비디오 1",
+	name: "타임라인 1",
 	type: "video",
 	clips: [],
 	muted: false,
@@ -189,9 +194,9 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
 		if (!result) return;
 
 		const [left, right] = result;
-		// 원본의 outTransition을 오른쪽 분할 클립에 이전
-		const leftClip: Clip = { ...left, outTransition: undefined };
-		const rightClip: Clip = { ...right, outTransition: clip.outTransition };
+		// 원본의 outTransition을 오른쪽 분할 클립에 이전, 필터는 양쪽에 복사
+		const leftClip: Clip = { ...left, outTransition: undefined, filter: clip.filter };
+		const rightClip: Clip = { ...right, outTransition: clip.outTransition, filter: clip.filter };
 		set((state) => ({
 			tracks: state.tracks.map((t) =>
 				t.id === trackId
@@ -285,6 +290,36 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
 									? { ...c, outTransition: { ...c.outTransition, ...updates } }
 									: c,
 							),
+						}
+					: t,
+			),
+		}));
+	},
+
+	updateFilter: (trackId, clipId, updates) => {
+		set((state) => ({
+			tracks: state.tracks.map((t) =>
+				t.id === trackId
+					? {
+							...t,
+							clips: t.clips.map((c) => {
+								if (c.id !== clipId) return c;
+								const merged = { ...(c.filter ?? DEFAULT_CLIP_FILTER), ...updates };
+								return { ...c, filter: isDefaultFilter(merged) ? undefined : merged };
+							}),
+						}
+					: t,
+			),
+		}));
+	},
+
+	resetFilter: (trackId, clipId) => {
+		set((state) => ({
+			tracks: state.tracks.map((t) =>
+				t.id === trackId
+					? {
+							...t,
+							clips: t.clips.map((c) => (c.id === clipId ? { ...c, filter: undefined } : c)),
 						}
 					: t,
 			),

@@ -1,5 +1,5 @@
 import { useDroppable } from "@dnd-kit/core";
-import { type Ref, useMemo } from "react";
+import { type Ref, useCallback, useMemo, useState } from "react";
 import { TRACK_HEIGHT } from "@/constants/timeline";
 import type { Clip, Track } from "@/types/timeline";
 import { cn } from "@/utils/cn";
@@ -23,6 +23,12 @@ export function TrackRow({
 	onSelectClip,
 	dropIndicatorRef,
 }: TrackRowProps) {
+	const [autoOpenClipId, setAutoOpenClipId] = useState<string | null>(null);
+
+	const handleTransitionAdded = useCallback((clipId: string) => {
+		setAutoOpenClipId(clipId);
+	}, []);
+
 	const { setNodeRef, isOver } = useDroppable({
 		id: `track-${track.id}`,
 		data: { trackId: track.id },
@@ -63,6 +69,10 @@ export function TrackRow({
 							nextClip={nextClip}
 							zoom={zoom}
 							trackId={track.id}
+							autoOpen={autoOpenClipId === clip.id}
+							onPopoverClosed={() => {
+								if (autoOpenClipId === clip.id) setAutoOpenClipId(null);
+							}}
 						/>
 					) : (
 						<AddTransitionButton
@@ -71,6 +81,7 @@ export function TrackRow({
 							nextClip={nextClip}
 							zoom={zoom}
 							trackId={track.id}
+							onAdded={handleTransitionAdded}
 						/>
 					);
 				})}

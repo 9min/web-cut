@@ -1,5 +1,6 @@
 import { TRANSITION_TO_FFMPEG_MAP } from "@/constants/transition";
 import type { Clip, Track } from "@/types/timeline";
+import { buildEqFilterString } from "@/utils/filterUtils";
 
 export function getSortedVideoClips(tracks: Track[]): Clip[] {
 	const clips: Clip[] = [];
@@ -43,6 +44,10 @@ function buildSingleClipArgs(
 	const inputFile = assetFileMap.get(clip.assetId);
 	if (!inputFile) return [];
 
+	const scaleFilter = `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2`;
+	const eqFilter = clip.filter ? buildEqFilterString(clip.filter) : null;
+	const vf = eqFilter ? `${scaleFilter},${eqFilter}` : scaleFilter;
+
 	return [
 		"-i",
 		inputFile,
@@ -51,7 +56,7 @@ function buildSingleClipArgs(
 		"-t",
 		String(clip.outPoint - clip.inPoint),
 		"-vf",
-		`scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2`,
+		vf,
 		"-c:v",
 		"libx264",
 		"-preset",
@@ -96,9 +101,11 @@ function buildConcatArgs(
 
 		const trimStart = clip.inPoint;
 		const trimEnd = clip.outPoint;
+		const eqFilter = clip.filter ? buildEqFilterString(clip.filter) : null;
+		const eqPart = eqFilter ? `,${eqFilter}` : "";
 
 		filterParts.push(
-			`[${idx}:v]trim=start=${trimStart}:end=${trimEnd},setpts=PTS-STARTPTS,scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2[v${i}]`,
+			`[${idx}:v]trim=start=${trimStart}:end=${trimEnd},setpts=PTS-STARTPTS,scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2${eqPart}[v${i}]`,
 		);
 		filterParts.push(
 			`[${idx}:a]atrim=start=${trimStart}:end=${trimEnd},asetpts=PTS-STARTPTS[a${i}]`,
@@ -148,8 +155,11 @@ function buildXfadeArgs(
 		const idx = inputIndices.get(clip.assetId);
 		if (idx === undefined) continue;
 
+		const eqFilter = clip.filter ? buildEqFilterString(clip.filter) : null;
+		const eqPart = eqFilter ? `,${eqFilter}` : "";
+
 		filterParts.push(
-			`[${idx}:v]trim=start=${clip.inPoint}:end=${clip.outPoint},setpts=PTS-STARTPTS,scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2[v${i}]`,
+			`[${idx}:v]trim=start=${clip.inPoint}:end=${clip.outPoint},setpts=PTS-STARTPTS,scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2${eqPart}[v${i}]`,
 		);
 		filterParts.push(
 			`[${idx}:a]atrim=start=${clip.inPoint}:end=${clip.outPoint},asetpts=PTS-STARTPTS[a${i}]`,

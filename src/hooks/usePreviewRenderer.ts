@@ -1,6 +1,7 @@
 import {
 	type Application,
 	Assets,
+	ColorMatrixFilter,
 	Container,
 	Graphics,
 	Sprite,
@@ -12,6 +13,7 @@ import { useMediaStore } from "@/stores/useMediaStore";
 import { usePlaybackStore } from "@/stores/usePlaybackStore";
 import { useProjectStore } from "@/stores/useProjectStore";
 import { useTimelineStore } from "@/stores/useTimelineStore";
+import { applyClipFilter, clearClipFilter } from "@/utils/filterRenderer";
 import { getVisibleClipsAtTime, type VisibleClip } from "@/utils/previewUtils";
 import {
 	applyFadeTransition,
@@ -22,6 +24,7 @@ import {
 interface SpriteEntry {
 	sprite: Sprite;
 	video: HTMLVideoElement | null;
+	colorFilter: ColorMatrixFilter;
 }
 
 export function usePreviewRenderer(
@@ -103,6 +106,13 @@ export function usePreviewRenderer(
 				fitSprite(entry.sprite, pw, ph);
 				clearTransitionEffects(entry.sprite);
 
+				// 필터 적용
+				if (vc.clip.filter) {
+					applyClipFilter(entry.sprite, entry.colorFilter, vc.clip.filter);
+				} else {
+					clearClipFilter(entry.sprite, entry.colorFilter);
+				}
+
 				if (entry.video) {
 					syncVideo(entry.video, vc.localTime);
 				}
@@ -150,9 +160,10 @@ export function usePreviewRenderer(
 						});
 						const texture = new Texture({ source });
 						const sprite = new Sprite(texture);
+						const colorFilter = new ColorMatrixFilter();
 						container.addChild(sprite);
 
-						entriesRef.current.set(clipId, { sprite, video });
+						entriesRef.current.set(clipId, { sprite, video, colorFilter });
 						loadingRef.current.delete(clipId);
 					},
 					{ once: true },
@@ -176,9 +187,10 @@ export function usePreviewRenderer(
 						if (!stageContainerRef.current) return;
 
 						const sprite = new Sprite(texture);
+						const colorFilter = new ColorMatrixFilter();
 						container.addChild(sprite);
 
-						entriesRef.current.set(clipId, { sprite, video: null });
+						entriesRef.current.set(clipId, { sprite, video: null, colorFilter });
 						loadingRef.current.delete(clipId);
 					})
 					.catch(() => {

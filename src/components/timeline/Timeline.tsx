@@ -5,7 +5,6 @@ import { useHistoryStore } from "@/stores/useHistoryStore";
 import { usePlaybackStore } from "@/stores/usePlaybackStore";
 import { useTimelineStore } from "@/stores/useTimelineStore";
 import { useZoomStore } from "@/stores/useZoomStore";
-import type { TrackType } from "@/types/timeline";
 import { dropIndicatorMap } from "@/utils/dropIndicatorRefs";
 import { generateId } from "@/utils/generateId";
 import { getTimelineDuration, timeToPixel } from "@/utils/timelineUtils";
@@ -44,16 +43,17 @@ export function Timeline() {
 
 	const handleAddTrack = useCallback(() => {
 		const { tracks: currentTracks } = useTimelineStore.getState();
-		const videoCount = currentTracks.filter((t) => t.type === "video").length;
-		const audioCount = currentTracks.filter((t) => t.type === "audio").length;
-		const type: TrackType = videoCount <= audioCount ? "video" : "audio";
-		const name = type === "video" ? `비디오 ${videoCount + 1}` : `오디오 ${audioCount + 1}`;
+		const maxNum = currentTracks.reduce((max, t) => {
+			const match = t.name.match(/^타임라인 (\d+)$/);
+			return match ? Math.max(max, Number(match[1])) : max;
+		}, 0);
+		const name = `타임라인 ${maxNum + 1}`;
 
 		pushSnapshot();
 		addTrack({
 			id: generateId(),
 			name,
-			type,
+			type: "video",
 			clips: [],
 			muted: false,
 			locked: false,
