@@ -568,4 +568,78 @@ describe("useTimelineStore", () => {
 			expect(rightClip?.outTransition).toEqual({ type: "fade", duration: 0.5 });
 		});
 	});
+
+	describe("updateFilter", () => {
+		it("클립에 필터를 부분 업데이트한다", () => {
+			useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
+			useTimelineStore.getState().addClip("t1", createTestClip({ id: "c1", trackId: "t1" }));
+
+			useTimelineStore.getState().updateFilter("t1", "c1", { brightness: 50 });
+
+			const clip = useTimelineStore.getState().tracks[0]?.clips[0];
+			expect(clip?.filter).toEqual({ brightness: 50, contrast: 0, saturation: 0 });
+		});
+
+		it("모든 값을 0으로 되돌리면 filter가 undefined가 된다", () => {
+			useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
+			useTimelineStore.getState().addClip("t1", createTestClip({ id: "c1", trackId: "t1" }));
+
+			useTimelineStore.getState().updateFilter("t1", "c1", { brightness: 50 });
+			useTimelineStore.getState().updateFilter("t1", "c1", { brightness: 0 });
+
+			const clip = useTimelineStore.getState().tracks[0]?.clips[0];
+			expect(clip?.filter).toBeUndefined();
+		});
+
+		it("기존 필터 위에 부분 업데이트한다", () => {
+			useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
+			useTimelineStore.getState().addClip("t1", createTestClip({ id: "c1", trackId: "t1" }));
+
+			useTimelineStore.getState().updateFilter("t1", "c1", { brightness: 50 });
+			useTimelineStore.getState().updateFilter("t1", "c1", { contrast: -30 });
+
+			const clip = useTimelineStore.getState().tracks[0]?.clips[0];
+			expect(clip?.filter).toEqual({ brightness: 50, contrast: -30, saturation: 0 });
+		});
+	});
+
+	describe("resetFilter", () => {
+		it("클립의 필터를 초기화한다", () => {
+			useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
+			useTimelineStore.getState().addClip("t1", createTestClip({ id: "c1", trackId: "t1" }));
+
+			useTimelineStore.getState().updateFilter("t1", "c1", { brightness: 50 });
+			useTimelineStore.getState().resetFilter("t1", "c1");
+
+			const clip = useTimelineStore.getState().tracks[0]?.clips[0];
+			expect(clip?.filter).toBeUndefined();
+		});
+	});
+
+	describe("splitClip (필터 정합성)", () => {
+		it("분할 시 양쪽 클립에 필터를 복사한다", () => {
+			useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
+			useTimelineStore.getState().addClip(
+				"t1",
+				createTestClip({
+					id: "A",
+					trackId: "t1",
+					startTime: 0,
+					duration: 10,
+					inPoint: 0,
+					outPoint: 10,
+					filter: { brightness: 30, contrast: -20, saturation: 50 },
+				}),
+			);
+
+			useTimelineStore.getState().splitClip("t1", "A", 5);
+
+			const clips = useTimelineStore.getState().tracks[0]?.clips;
+			const leftClip = clips?.find((c) => c.startTime === 0 && c.duration === 5);
+			const rightClip = clips?.find((c) => c.startTime === 5 && c.duration === 5);
+
+			expect(leftClip?.filter).toEqual({ brightness: 30, contrast: -20, saturation: 50 });
+			expect(rightClip?.filter).toEqual({ brightness: 30, contrast: -20, saturation: 50 });
+		});
+	});
 });

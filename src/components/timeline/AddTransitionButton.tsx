@@ -11,6 +11,7 @@ interface AddTransitionButtonProps {
 	nextClip: Clip;
 	zoom: number;
 	trackId: string;
+	onAdded?: (clipId: string) => void;
 }
 
 export const AddTransitionButton = memo(function AddTransitionButton({
@@ -18,6 +19,7 @@ export const AddTransitionButton = memo(function AddTransitionButton({
 	nextClip,
 	zoom,
 	trackId,
+	onAdded,
 }: AddTransitionButtonProps) {
 	const { addTransition } = useTimelineStore();
 	const [hovered, setHovered] = useState(false);
@@ -29,8 +31,9 @@ export const AddTransitionButton = memo(function AddTransitionButton({
 				type: "fade",
 				duration: DEFAULT_TRANSITION_DURATION,
 			});
+			onAdded?.(clip.id);
 		},
-		[trackId, clip.id, addTransition],
+		[trackId, clip.id, addTransition, onAdded],
 	);
 
 	if (!canAddTransition(clip, nextClip)) return null;

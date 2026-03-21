@@ -145,4 +145,60 @@ describe("buildFFmpegArgs", () => {
 		expect(filterComplex).toContain("concat=n=2");
 		expect(filterComplex).not.toContain("xfade");
 	});
+
+	it("단일 클립에 필터가 있으면 eq 필터를 포함한다", () => {
+		const clips = [
+			makeClip({
+				assetId: "a1",
+				inPoint: 0,
+				outPoint: 10,
+				filter: { brightness: 50, contrast: 0, saturation: 0 },
+			}),
+		];
+		const assetFileMap = new Map([["a1", "input_a1.mp4"]]);
+		const args = buildFFmpegArgs(clips, assetFileMap, 1920, 1080);
+
+		const vfIndex = args.indexOf("-vf");
+		const vfValue = args[vfIndex + 1] ?? "";
+		expect(vfValue).toContain("eq=brightness=0.5:contrast=1:saturation=1");
+	});
+
+	it("concat 모드에서 필터가 있는 클립에 eq를 추가한다", () => {
+		const clips = [
+			makeClip({
+				id: "c1",
+				assetId: "a1",
+				startTime: 0,
+				inPoint: 0,
+				outPoint: 5,
+				filter: { brightness: -50, contrast: 50, saturation: 0 },
+			}),
+			makeClip({ id: "c2", assetId: "a2", startTime: 5, inPoint: 0, outPoint: 5 }),
+		];
+		const assetFileMap = new Map([
+			["a1", "input_a1.mp4"],
+			["a2", "input_a2.mp4"],
+		]);
+		const args = buildFFmpegArgs(clips, assetFileMap, 1920, 1080);
+
+		const filterComplex = args[args.indexOf("-filter_complex") + 1] ?? "";
+		expect(filterComplex).toContain("eq=brightness=-0.5:contrast=1.5:saturation=1");
+	});
+
+	it("필터가 기본값이면 eq를 추가하지 않는다", () => {
+		const clips = [
+			makeClip({
+				assetId: "a1",
+				inPoint: 0,
+				outPoint: 10,
+				filter: { brightness: 0, contrast: 0, saturation: 0 },
+			}),
+		];
+		const assetFileMap = new Map([["a1", "input_a1.mp4"]]);
+		const args = buildFFmpegArgs(clips, assetFileMap, 1920, 1080);
+
+		const vfIndex = args.indexOf("-vf");
+		const vfValue = args[vfIndex + 1] ?? "";
+		expect(vfValue).not.toContain("eq=");
+	});
 });

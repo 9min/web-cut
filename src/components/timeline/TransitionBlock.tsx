@@ -10,6 +10,8 @@ interface TransitionBlockProps {
 	nextClip: Clip;
 	zoom: number;
 	trackId: string;
+	autoOpen?: boolean;
+	onPopoverClosed?: () => void;
 }
 
 export const TransitionBlock = memo(function TransitionBlock({
@@ -17,8 +19,10 @@ export const TransitionBlock = memo(function TransitionBlock({
 	nextClip,
 	zoom,
 	trackId,
+	autoOpen,
+	onPopoverClosed,
 }: TransitionBlockProps) {
-	const [showPopover, setShowPopover] = useState(false);
+	const [showPopover, setShowPopover] = useState(autoOpen ?? false);
 	const buttonRef = useRef<HTMLButtonElement>(null);
 
 	const handleClick = useCallback((e: React.MouseEvent) => {
@@ -77,7 +81,10 @@ export const TransitionBlock = memo(function TransitionBlock({
 					nextClip={nextClip}
 					trackId={trackId}
 					anchorRef={buttonRef}
-					onClose={() => setShowPopover(false)}
+					onClose={() => {
+						setShowPopover(false);
+						onPopoverClosed?.();
+					}}
 				/>
 			)}
 		</div>

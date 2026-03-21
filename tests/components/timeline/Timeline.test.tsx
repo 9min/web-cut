@@ -18,7 +18,7 @@ describe("Timeline", () => {
 
 	it("초기 상태에 기본 트랙이 표시된다", () => {
 		render(<Timeline />);
-		expect(screen.getByText("비디오 1")).toBeInTheDocument();
+		expect(screen.getByText("타임라인 1")).toBeInTheDocument();
 	});
 
 	it("트랙을 추가하면 목록에 표시된다", () => {

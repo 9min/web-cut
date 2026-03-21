@@ -1,3 +1,4 @@
+import type { ClipFilter } from "./filter";
 import type { Transition } from "./transition";
 
 export type TrackType = "video" | "audio";
@@ -12,6 +13,7 @@ export interface Clip {
 	inPoint: number;
 	outPoint: number;
 	outTransition?: Transition;
+	filter?: ClipFilter;
 }
 
 export interface Track {
