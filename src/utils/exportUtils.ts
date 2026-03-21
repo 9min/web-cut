@@ -184,13 +184,23 @@ function buildSingleClipArgs(
 		}
 		filterParts.push(`${vf}[outv]`);
 
-		// 비디오의 내장 오디오
-		filterParts.push(
-			`[0:a]atrim=start=${clip.inPoint}:end=${clip.outPoint},asetpts=PTS-STARTPTS[vidasrc]`,
-		);
+		// 비디오의 내장 오디오 (이미지 파일은 오디오 스트림이 없으므로 무음 생성)
+		const isImage = /\.(png|jpe?g|gif|bmp|webp|svg)$/i.test(inputFile);
+		let videoAudioLabel: string;
+		if (isImage) {
+			const duration = clip.outPoint - clip.inPoint;
+			filterParts.push("anullsrc=r=44100:cl=stereo[nullaudio]");
+			filterParts.push(`[nullaudio]atrim=duration=${duration},asetpts=PTS-STARTPTS[vidasrc]`);
+			videoAudioLabel = "[vidasrc]";
+		} else {
+			filterParts.push(
+				`[0:a]atrim=start=${clip.inPoint}:end=${clip.outPoint},asetpts=PTS-STARTPTS[vidasrc]`,
+			);
+			videoAudioLabel = "[vidasrc]";
+		}
 
 		// 오디오 믹싱
-		const audioMix = buildAudioMixFilter(audioClips, inputIndexMap, "[vidasrc]");
+		const audioMix = buildAudioMixFilter(audioClips, inputIndexMap, videoAudioLabel);
 		filterParts.push(...audioMix.filterParts);
 
 		args.push("-filter_complex", filterParts.join(";"));
