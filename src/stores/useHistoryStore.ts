@@ -1,4 +1,3 @@
-import { produce } from "immer";
 import { create } from "zustand";
 import type { Track } from "@/types/timeline";
 import { useTimelineStore } from "./useTimelineStore";
@@ -28,7 +27,7 @@ interface HistoryState {
 function takeSnapshot(label: string): LabeledSnapshot {
 	const { tracks, selectedClipIds } = useTimelineStore.getState();
 	return {
-		tracks: produce(tracks, () => {}),
+		tracks: structuredClone(tracks),
 		selectedClipIds: [...selectedClipIds],
 		label,
 		timestamp: Date.now(),

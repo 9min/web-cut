@@ -30,7 +30,8 @@ export async function loadWaveformPeaks(
 	url: string,
 	numBars: number,
 ): Promise<Float32Array> {
-	const cached = waveformCache.get(assetId);
+	const cacheKey = `${assetId}_${numBars}`;
+	const cached = waveformCache.get(cacheKey);
 	if (cached) return cached;
 
 	const response = await fetch(url);
@@ -42,7 +43,7 @@ export async function loadWaveformPeaks(
 		const channelData = audioBuffer.getChannelData(0);
 		const peaks = extractPeaks(channelData, numBars);
 
-		waveformCache.set(assetId, peaks);
+		waveformCache.set(cacheKey, peaks);
 		return peaks;
 	} finally {
 		await audioContext.close();

@@ -686,8 +686,10 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
 		const clip = track?.clips.find((c) => c.id === clipId);
 		if (!clip) return;
 
-		const newInPoint = clip.inPoint + delta;
-		const newOutPoint = clip.outPoint + delta;
+		// inPoint가 음수가 되지 않도록 클램핑
+		const clampedDelta = Math.max(-clip.inPoint, delta);
+		const newInPoint = clip.inPoint + clampedDelta;
+		const newOutPoint = clip.outPoint + clampedDelta;
 
 		set((state) => ({
 			tracks: state.tracks.map((t) =>

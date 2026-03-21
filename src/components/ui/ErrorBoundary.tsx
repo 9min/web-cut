@@ -53,7 +53,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 			return (
 				<div className="flex flex-col items-center justify-center gap-4 p-8 text-center">
 					<h2 className="text-lg font-semibold text-white">문제가 발생했습니다</h2>
-					<p className="text-sm text-gray-400">{this.state.error.message}</p>
+					<p className="text-sm text-gray-400">
+						예상치 못한 오류가 발생했습니다. 다시 시도해 주세요.
+					</p>
 					<button
 						type="button"
 						onClick={this.handleReset}
