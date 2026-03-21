@@ -7,6 +7,7 @@ export interface VisibleClip {
 	clip: Clip;
 	trackId: string;
 	localTime: number;
+	muted?: boolean;
 	transitionProgress?: number;
 	transitionType?: TransitionType;
 	isOutgoing?: boolean;
@@ -39,6 +40,7 @@ export function getVisibleClipsAtTime(tracks: Track[], currentTime: number): Vis
 						clip,
 						trackId: track.id,
 						localTime: clip.inPoint + outElapsed,
+						muted: track.muted || undefined,
 						transitionProgress: progress,
 						transitionType: clip.outTransition?.type,
 						isOutgoing: true,
@@ -49,6 +51,7 @@ export function getVisibleClipsAtTime(tracks: Track[], currentTime: number): Vis
 						clip: nextClip,
 						trackId: track.id,
 						localTime: nextClip.inPoint + Math.max(0, inElapsed),
+						muted: track.muted || undefined,
 						transitionProgress: progress,
 						transitionType: clip.outTransition?.type,
 						isOutgoing: false,
@@ -73,6 +76,7 @@ export function getVisibleClipsAtTime(tracks: Track[], currentTime: number): Vis
 					clip,
 					trackId: track.id,
 					localTime: clip.inPoint + elapsed,
+					muted: track.muted || undefined,
 				});
 			}
 		}
@@ -100,6 +104,7 @@ export function getVisibleAudioClipsAtTime(
 
 	for (const track of tracks) {
 		if (track.type !== "audio") continue;
+		if (track.muted) continue;
 
 		for (const clip of track.clips) {
 			const clipEnd = clip.startTime + clip.duration;
@@ -122,6 +127,7 @@ export function getVisibleTextClipsAtTime(tracks: Track[], currentTime: number):
 
 	for (const track of tracks) {
 		if (track.type !== "text") continue;
+		if (track.muted) continue;
 
 		for (const textClip of track.textClips) {
 			const end = textClip.startTime + textClip.duration;

@@ -15,6 +15,7 @@ function handleDeleteClip(e: KeyboardEvent): void {
 
 	const track = tracks.find((t) => t.clips.some((c) => c.id === selectedClipId));
 	if (track) {
+		if (track.locked) return;
 		useHistoryStore.getState().pushSnapshot();
 		removeClip(track.id, selectedClipId);
 		return;
@@ -22,6 +23,7 @@ function handleDeleteClip(e: KeyboardEvent): void {
 
 	const textTrack = tracks.find((t) => t.textClips.some((tc) => tc.id === selectedClipId));
 	if (textTrack) {
+		if (textTrack.locked) return;
 		useHistoryStore.getState().pushSnapshot();
 		removeTextClip(textTrack.id, selectedClipId);
 	}
@@ -35,6 +37,7 @@ function handleSplitClip(e: KeyboardEvent): void {
 
 	const track = tracks.find((t) => t.clips.some((c) => c.id === selectedClipId));
 	if (!track) return;
+	if (track.locked) return;
 
 	const currentTime = usePlaybackStore.getState().currentTime;
 	useHistoryStore.getState().pushSnapshot();

@@ -1,5 +1,5 @@
 import { useDroppable } from "@dnd-kit/core";
-import { Plus, X } from "lucide-react";
+import { Lock, Plus, Unlock, Volume2, VolumeX, X } from "lucide-react";
 import { type Ref, useCallback, useMemo, useState } from "react";
 import { TRACK_HEIGHT } from "@/constants/timeline";
 import { useTimelineStore } from "@/stores/useTimelineStore";
@@ -10,6 +10,7 @@ import { AddTransitionButton } from "./AddTransitionButton";
 import { AudioClipBlock } from "./AudioClipBlock";
 import { ClipBlock } from "./ClipBlock";
 import { DropIndicator } from "./DropIndicator";
+import { SnapIndicator } from "./SnapIndicator";
 import { TextClipBlock } from "./TextClipBlock";
 import { TransitionBlock } from "./TransitionBlock";
 
@@ -19,8 +20,11 @@ interface TrackRowProps {
 	selectedClipId: string | null;
 	onSelectClip: (clipId: string) => void;
 	dropIndicatorRef?: Ref<HTMLDivElement>;
+	snapIndicatorRef?: Ref<HTMLDivElement>;
 	onAddTextClip?: (trackId: string, startTime: number) => void;
 	onRemoveTrack?: (trackId: string) => void;
+	onToggleMuted?: (trackId: string) => void;
+	onToggleLocked?: (trackId: string) => void;
 	currentTime?: number;
 }
 
@@ -30,8 +34,11 @@ export function TrackRow({
 	selectedClipId,
 	onSelectClip,
 	dropIndicatorRef,
+	snapIndicatorRef,
 	onAddTextClip,
 	onRemoveTrack,
+	onToggleMuted,
+	onToggleLocked,
 	currentTime = 0,
 }: TrackRowProps) {
 	const [autoOpenClipId, setAutoOpenClipId] = useState<string | null>(null);
@@ -81,35 +88,71 @@ export function TrackRow({
 
 	return (
 		<div data-testid="track-row" className="group/row flex border-b border-gray-800">
-			<div className="flex w-28 shrink-0 items-center gap-1 border-r border-gray-800 px-2">
-				<span className="min-w-0 flex-1 truncate text-xs text-gray-300">{track.name}</span>
-				{isTextTrack && onAddTextClip && (
-					<button
-						type="button"
-						onClick={handleAddTextClipClick}
-						className="flex shrink-0 items-center justify-center rounded p-0.5 text-gray-400 hover:bg-gray-700 hover:text-white"
-						aria-label="텍스트 클립 추가"
-						data-testid="add-text-clip-button"
-					>
-						<Plus size={12} />
-					</button>
-				)}
-				{onRemoveTrack && (
-					<button
-						type="button"
-						onClick={() => onRemoveTrack(track.id)}
-						className="flex shrink-0 items-center justify-center rounded p-0.5 text-gray-500 opacity-0 hover:bg-gray-700 hover:text-red-400 group-hover/row:opacity-100"
-						aria-label="트랙 삭제"
-						data-testid="remove-track-button"
-					>
-						<X size={12} />
-					</button>
-				)}
+			<div className="flex w-28 shrink-0 flex-col justify-center gap-0.5 border-r border-gray-800 px-2 py-1">
+				<div className="flex items-center gap-1">
+					<span className="min-w-0 flex-1 truncate text-xs text-gray-300">{track.name}</span>
+					{onRemoveTrack && (
+						<button
+							type="button"
+							onClick={() => onRemoveTrack(track.id)}
+							className="flex shrink-0 items-center justify-center rounded p-0.5 text-gray-500 opacity-0 hover:bg-gray-700 hover:text-red-400 group-hover/row:opacity-100"
+							aria-label="트랙 삭제"
+							data-testid="remove-track-button"
+						>
+							<X size={10} />
+						</button>
+					)}
+				</div>
+				<div className="flex items-center gap-0.5">
+					{onToggleMuted && (
+						<button
+							type="button"
+							onClick={() => onToggleMuted(track.id)}
+							className={cn(
+								"flex shrink-0 items-center justify-center rounded p-0.5 hover:bg-gray-700",
+								track.muted ? "text-yellow-400" : "text-gray-500",
+							)}
+							aria-label={track.muted ? "뮤트 해제" : "뮤트"}
+							data-testid="toggle-mute-button"
+						>
+							{track.muted ? <VolumeX size={11} /> : <Volume2 size={11} />}
+						</button>
+					)}
+					{onToggleLocked && (
+						<button
+							type="button"
+							onClick={() => onToggleLocked(track.id)}
+							className={cn(
+								"flex shrink-0 items-center justify-center rounded p-0.5 hover:bg-gray-700",
+								track.locked ? "text-red-400" : "text-gray-500",
+							)}
+							aria-label={track.locked ? "잠금 해제" : "잠금"}
+							data-testid="toggle-lock-button"
+						>
+							{track.locked ? <Lock size={11} /> : <Unlock size={11} />}
+						</button>
+					)}
+					{isTextTrack && onAddTextClip && (
+						<button
+							type="button"
+							onClick={handleAddTextClipClick}
+							className="flex shrink-0 items-center justify-center rounded p-0.5 text-gray-400 hover:bg-gray-700 hover:text-white"
+							aria-label="텍스트 클립 추가"
+							data-testid="add-text-clip-button"
+						>
+							<Plus size={11} />
+						</button>
+					)}
+				</div>
 			</div>
 			{/* biome-ignore lint/a11y/noStaticElementInteractions: 텍스트 트랙 빈 영역 더블클릭으로 클립 생성 */}
 			<div
 				ref={setNodeRef}
-				className={cn("group/track relative flex-1 overflow-visible", isOver && "bg-blue-900/20")}
+				className={cn(
+					"group/track relative flex-1 overflow-visible",
+					isOver && "bg-blue-900/20",
+					track.muted && "opacity-50",
+				)}
 				style={{ height: TRACK_HEIGHT }}
 				onDoubleClick={isTextTrack ? handleTrackDoubleClick : undefined}
 			>
@@ -175,6 +218,13 @@ export function TrackRow({
 					</>
 				)}
 				<DropIndicator ref={dropIndicatorRef} />
+				<SnapIndicator ref={snapIndicatorRef} />
+				{track.locked && (
+					<div
+						className="pointer-events-none absolute inset-0 bg-gray-900/30"
+						data-testid="locked-overlay"
+					/>
+				)}
 			</div>
 		</div>
 	);

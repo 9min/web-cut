@@ -14,6 +14,7 @@ import {
 	computePreviewOffsets,
 } from "@/utils/previewOffsets";
 import { sanitizeFileName } from "@/utils/sanitizeFileName";
+import { snapIndicatorMap } from "@/utils/snapIndicatorRefs";
 import {
 	calculateDropPosition,
 	findDropIndex,
@@ -107,6 +108,23 @@ function updateIndicator(
 	}
 }
 
+function updateSnapIndicator(
+	dropTrackId: string,
+	snapped: boolean,
+	snapPoint: number,
+	zoom: number,
+): void {
+	const el = snapIndicatorMap.get(dropTrackId);
+	if (!el) return;
+
+	if (snapped) {
+		el.style.display = "block";
+		el.style.left = `${timeToPixel(snapPoint, zoom)}px`;
+	} else {
+		el.style.display = "none";
+	}
+}
+
 function handleClipMove(
 	data: ClipDragData,
 	dropTrackId: string,
@@ -119,7 +137,8 @@ function handleClipMove(
 	const isSameTrack = data.trackId === dropTrackId;
 	const newStartTime = isSameTrack
 		? Math.max(0, ctx.clip.startTime + deltaX / zoom)
-		: calculateDropPosition(ctx.clip.startTime, ctx.clip.duration, deltaX, zoom, ctx.otherClips);
+		: calculateDropPosition(ctx.clip.startTime, ctx.clip.duration, deltaX, zoom, ctx.otherClips)
+				.position;
 
 	useHistoryStore.getState().pushSnapshot();
 	useTimelineStore.getState().insertClipAt(data.trackId, data.clipId, dropTrackId, newStartTime);
@@ -156,6 +175,9 @@ export function useTimelineDragDrop(): UseTimelineDragDropReturn {
 		for (const el of dropIndicatorMap.values()) {
 			el.style.display = "none";
 		}
+		for (const el of snapIndicatorMap.values()) {
+			el.style.display = "none";
+		}
 		clearAllPreviewOffsets();
 		prevTrackIdRef.current = "";
 	}, []);
@@ -189,14 +211,15 @@ export function useTimelineDragDrop(): UseTimelineDragDropReturn {
 				applyPreviewOffsets(offsets);
 			} else {
 				clearAllPreviewOffsets();
-				const newStartTime = calculateDropPosition(
+				const dropResult = calculateDropPosition(
 					ctx.clip.startTime,
 					ctx.clip.duration,
 					delta.x,
 					zoom,
 					ctx.otherClips,
 				);
-				updateIndicator(dropTrackId, prevTrackIdRef, newStartTime, zoom);
+				updateIndicator(dropTrackId, prevTrackIdRef, dropResult.position, zoom);
+				updateSnapIndicator(dropTrackId, dropResult.snapped, dropResult.snapPoint, zoom);
 			}
 		} else if (dragData.type === DND_TYPES.TIMELINE_TEXT_CLIP) {
 			const { tracks } = useTimelineStore.getState();
@@ -218,6 +241,20 @@ export function useTimelineDragDrop(): UseTimelineDragDropReturn {
 			const dragData = active.data.current as DragData | undefined;
 			const dropTrackId = over.data.current?.trackId as string | undefined;
 			if (!dragData || !dropTrackId) return;
+
+			// locked 트랙 드래그/드롭 차단 (출발 트랙 또는 대상 트랙)
+			const { tracks } = useTimelineStore.getState();
+			const targetTrack = tracks.find((t) => t.id === dropTrackId);
+			if (targetTrack?.locked) return;
+
+			const sourceTrackId =
+				dragData.type === DND_TYPES.TIMELINE_CLIP || dragData.type === DND_TYPES.TIMELINE_TEXT_CLIP
+					? dragData.trackId
+					: undefined;
+			if (sourceTrackId) {
+				const sourceTrack = tracks.find((t) => t.id === sourceTrackId);
+				if (sourceTrack?.locked) return;
+			}
 
 			if (dragData.type === DND_TYPES.MEDIA_ITEM) {
 				handleMediaDrop(dragData, dropTrackId, addClip);

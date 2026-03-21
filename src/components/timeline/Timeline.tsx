@@ -7,6 +7,7 @@ import { useTimelineStore } from "@/stores/useTimelineStore";
 import { useZoomStore } from "@/stores/useZoomStore";
 import { dropIndicatorMap } from "@/utils/dropIndicatorRefs";
 import { generateId } from "@/utils/generateId";
+import { snapIndicatorMap } from "@/utils/snapIndicatorRefs";
 import { createDefaultTextClip } from "@/utils/textClipUtils";
 import { getTimelineDuration, timeToPixel } from "@/utils/timelineUtils";
 import { PlaybackControls } from "./PlaybackControls";
@@ -27,6 +28,8 @@ export function Timeline() {
 	const addTextTrack = useTimelineStore((s) => s.addTextTrack);
 	const addAudioTrack = useTimelineStore((s) => s.addAudioTrack);
 	const addTextClip = useTimelineStore((s) => s.addTextClip);
+	const toggleTrackMuted = useTimelineStore((s) => s.toggleTrackMuted);
+	const toggleTrackLocked = useTimelineStore((s) => s.toggleTrackLocked);
 	const currentTime = usePlaybackStore((s) => s.currentTime);
 	const seek = usePlaybackStore((s) => s.seek);
 	const setDuration = usePlaybackStore((s) => s.setDuration);
@@ -104,7 +107,7 @@ export function Timeline() {
 
 		// text 트랙의 TextClip은 분할하지 않음
 		const track = allTracks.find((t) => t.clips.some((c) => c.id === clipId));
-		if (!track) return;
+		if (!track || track.locked) return;
 		pushSnapshot();
 		splitClip(track.id, clipId, time);
 	}, [splitClip, pushSnapshot]);
@@ -116,6 +119,7 @@ export function Timeline() {
 		// 먼저 일반 클립에서 찾기
 		const track = allTracks.find((t) => t.clips.some((c) => c.id === clipId));
 		if (track) {
+			if (track.locked) return;
 			pushSnapshot();
 			removeClip(track.id, clipId);
 			return;
@@ -124,6 +128,7 @@ export function Timeline() {
 		// 텍스트 클립에서 찾기
 		const textTrack = allTracks.find((t) => t.textClips.some((tc) => tc.id === clipId));
 		if (textTrack) {
+			if (textTrack.locked) return;
 			pushSnapshot();
 			removeTextClip(textTrack.id, clipId);
 		}
@@ -175,12 +180,21 @@ export function Timeline() {
 								onSelectClip={selectClip}
 								onAddTextClip={handleAddTextClip}
 								onRemoveTrack={handleRemoveTrack}
+								onToggleMuted={toggleTrackMuted}
+								onToggleLocked={toggleTrackLocked}
 								currentTime={currentTime}
 								dropIndicatorRef={(el) => {
 									if (el) {
 										dropIndicatorMap.set(track.id, el);
 									} else {
 										dropIndicatorMap.delete(track.id);
+									}
+								}}
+								snapIndicatorRef={(el) => {
+									if (el) {
+										snapIndicatorMap.set(track.id, el);
+									} else {
+										snapIndicatorMap.delete(track.id);
 									}
 								}}
 							/>

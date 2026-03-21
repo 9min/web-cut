@@ -75,6 +75,45 @@ function buildTextClipFilters(tracks: Track[], width: number, height: number): s
 	return filters;
 }
 
+/** 오디오 클립 믹싱 필터를 생성한다 */
+export function buildAudioMixFilter(
+	audioClips: Clip[],
+	inputIndexMap: Map<string, number>,
+	videoAudioLabel: string,
+): { filterParts: string[]; outputLabel: string } {
+	if (audioClips.length === 0) {
+		return { filterParts: [], outputLabel: videoAudioLabel };
+	}
+
+	const filterParts: string[] = [];
+	const mixInputLabels: string[] = [videoAudioLabel];
+
+	for (let i = 0; i < audioClips.length; i++) {
+		const clip = audioClips[i] as Clip;
+		const idx = inputIndexMap.get(clip.assetId);
+		if (idx === undefined) continue;
+
+		const delayMs = Math.round(clip.startTime * 1000);
+		const volume = clip.volume ?? 1;
+		const label = `[audiomix${i}]`;
+
+		let filter = `[${idx}:a]atrim=start=${clip.inPoint}:end=${clip.outPoint},asetpts=PTS-STARTPTS`;
+		if (delayMs > 0) {
+			filter += `,adelay=${delayMs}|${delayMs}`;
+		}
+		filter += `,volume=${volume}${label}`;
+		filterParts.push(filter);
+		mixInputLabels.push(label);
+	}
+
+	const outLabel = "[outa]";
+	filterParts.push(
+		`${mixInputLabels.join("")}amix=inputs=${mixInputLabels.length}:duration=longest${outLabel}`,
+	);
+
+	return { filterParts, outputLabel: outLabel };
+}
+
 export function buildFFmpegArgs(
 	clips: Clip[],
 	assetFileMap: Map<string, string>,
@@ -95,6 +134,7 @@ export function buildFFmpegArgs(
 	return buildConcatArgs(clips, assetFileMap, outputWidth, outputHeight, tracks);
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: 오디오 믹싱 경로 분기 포함
 function buildSingleClipArgs(
 	clip: Clip,
 	assetFileMap: Map<string, string>,
@@ -105,6 +145,64 @@ function buildSingleClipArgs(
 	const inputFile = assetFileMap.get(clip.assetId);
 	if (!inputFile) return [];
 
+	// 오디오 클립 수집
+	const audioClips = tracks ? getSortedAudioClips(tracks) : [];
+
+	// 오디오 클립이 있으면 filter_complex 모드로 전환
+	if (audioClips.length > 0) {
+		const args: string[] = ["-i", inputFile];
+
+		// 오디오 입력 파일 추가
+		const inputIndexMap = new Map<string, number>();
+		inputIndexMap.set(clip.assetId, 0);
+		let inputIndex = 1;
+		for (const ac of audioClips) {
+			if (!inputIndexMap.has(ac.assetId)) {
+				const file = assetFileMap.get(ac.assetId);
+				if (!file) continue;
+				args.push("-i", file);
+				inputIndexMap.set(ac.assetId, inputIndex);
+				inputIndex++;
+			}
+		}
+
+		const filterParts: string[] = [];
+
+		// 비디오 필터
+		const scaleFilter = `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2`;
+		const eqFilter = clip.filter ? buildEqFilterString(clip.filter) : null;
+		const transformFilter = clip.transform
+			? buildTransformFilter(clip.transform, width, height)
+			: null;
+		let vf = `[0:v]trim=start=${clip.inPoint}:end=${clip.outPoint},setpts=PTS-STARTPTS,${scaleFilter}`;
+		if (eqFilter) vf += `,${eqFilter}`;
+		if (transformFilter) vf += `,${transformFilter}`;
+
+		const textFilters = tracks ? buildTextClipFilters(tracks, width, height) : [];
+		for (const tf of textFilters) {
+			vf += `,${tf}`;
+		}
+		filterParts.push(`${vf}[outv]`);
+
+		// 비디오의 내장 오디오
+		filterParts.push(
+			`[0:a]atrim=start=${clip.inPoint}:end=${clip.outPoint},asetpts=PTS-STARTPTS[vidasrc]`,
+		);
+
+		// 오디오 믹싱
+		const audioMix = buildAudioMixFilter(audioClips, inputIndexMap, "[vidasrc]");
+		filterParts.push(...audioMix.filterParts);
+
+		args.push("-filter_complex", filterParts.join(";"));
+		args.push("-map", "[outv]", "-map", audioMix.outputLabel);
+		args.push("-c:v", "libx264", "-preset", "fast");
+		args.push("-c:a", "aac");
+		args.push("-movflags", "+faststart");
+		args.push("output.mp4");
+		return args;
+	}
+
+	// 오디오 클립 없는 기존 경로
 	const scaleFilter = `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2`;
 	const eqFilter = clip.filter ? buildEqFilterString(clip.filter) : null;
 	const transformFilter = clip.transform
@@ -153,13 +251,25 @@ function buildConcatArgs(
 	const inputIndices = new Map<string, number>();
 	let inputIndex = 0;
 
-	// 입력 파일 추가 (중복 제거)
+	// 비디오 입력 파일 추가 (중복 제거)
 	for (const clip of clips) {
 		if (!inputIndices.has(clip.assetId)) {
 			const file = assetFileMap.get(clip.assetId);
 			if (!file) continue;
 			args.push("-i", file);
 			inputIndices.set(clip.assetId, inputIndex);
+			inputIndex++;
+		}
+	}
+
+	// 오디오 클립 입력 파일 추가
+	const audioClips = tracks ? getSortedAudioClips(tracks) : [];
+	for (const ac of audioClips) {
+		if (!inputIndices.has(ac.assetId)) {
+			const file = assetFileMap.get(ac.assetId);
+			if (!file) continue;
+			args.push("-i", file);
+			inputIndices.set(ac.assetId, inputIndex);
 			inputIndex++;
 		}
 	}
@@ -193,8 +303,10 @@ function buildConcatArgs(
 
 	// 독립 텍스트 클립 필터 체이닝
 	const textFilters = tracks ? buildTextClipFilters(tracks, width, height) : [];
+	const concatAudioLabel = audioClips.length > 0 ? "[concataudio]" : "[outa]";
+
 	if (textFilters.length > 0) {
-		const concatFilter = `${concatInputs.join("")}concat=n=${clips.length}:v=1:a=1[vconcatout][outa]`;
+		const concatFilter = `${concatInputs.join("")}concat=n=${clips.length}:v=1:a=1[vconcatout]${concatAudioLabel}`;
 		filterParts.push(concatFilter);
 		let lastLabel = "[vconcatout]";
 		for (let i = 0; i < textFilters.length; i++) {
@@ -203,8 +315,14 @@ function buildConcatArgs(
 			lastLabel = outLabel;
 		}
 	} else {
-		const concatFilter = `${concatInputs.join("")}concat=n=${clips.length}:v=1:a=1[outv][outa]`;
+		const concatFilter = `${concatInputs.join("")}concat=n=${clips.length}:v=1:a=1[outv]${concatAudioLabel}`;
 		filterParts.push(concatFilter);
+	}
+
+	// 오디오 믹싱
+	if (audioClips.length > 0) {
+		const audioMix = buildAudioMixFilter(audioClips, inputIndices, concatAudioLabel);
+		filterParts.push(...audioMix.filterParts);
 	}
 
 	args.push("-filter_complex", filterParts.join(";"));
@@ -228,13 +346,25 @@ function buildXfadeArgs(
 	const inputIndices = new Map<string, number>();
 	let inputIndex = 0;
 
-	// 입력 파일 추가 (중복 제거)
+	// 비디오 입력 파일 추가 (중복 제거)
 	for (const clip of clips) {
 		if (!inputIndices.has(clip.assetId)) {
 			const file = assetFileMap.get(clip.assetId);
 			if (!file) continue;
 			args.push("-i", file);
 			inputIndices.set(clip.assetId, inputIndex);
+			inputIndex++;
+		}
+	}
+
+	// 오디오 클립 입력 파일 추가
+	const audioClips = tracks ? getSortedAudioClips(tracks) : [];
+	for (const ac of audioClips) {
+		if (!inputIndices.has(ac.assetId)) {
+			const file = assetFileMap.get(ac.assetId);
+			if (!file) continue;
+			args.push("-i", file);
+			inputIndices.set(ac.assetId, inputIndex);
 			inputIndex++;
 		}
 	}
@@ -265,6 +395,7 @@ function buildXfadeArgs(
 	// 독립 텍스트 클립 필터
 	const textFilters = tracks ? buildTextClipFilters(tracks, width, height) : [];
 	const needsTextChain = textFilters.length > 0;
+	const hasAudioClips = audioClips.length > 0;
 
 	// xfade / acrossfade 체인 구성
 	let cumulativeDuration = clips[0] ? clips[0].outPoint - clips[0].inPoint : 0;
@@ -280,7 +411,7 @@ function buildXfadeArgs(
 			const ffmpegTransition = TRANSITION_TO_FFMPEG_MAP[transition.type];
 			const offset = cumulativeDuration - transition.duration;
 			const vOutLabel = isLast ? (needsTextChain ? "[vxfadeout]" : "[outv]") : `[vout${i}]`;
-			const aOutLabel = isLast ? "[outa]" : `[aout${i}]`;
+			const aOutLabel = isLast ? (hasAudioClips ? "[xfadeaudio]" : "[outa]") : `[aout${i}]`;
 
 			filterParts.push(
 				`${lastVideoLabel}[v${i}]xfade=transition=${ffmpegTransition}:duration=${transition.duration}:offset=${offset}${vOutLabel}`,
@@ -294,7 +425,7 @@ function buildXfadeArgs(
 		} else {
 			// 트랜지션 없는 클립 간: concat 사용
 			const vOutLabel = isLast ? (needsTextChain ? "[vcatout]" : "[outv]") : `[vcat${i}]`;
-			const aOutLabel = isLast ? "[outa]" : `[acat${i}]`;
+			const aOutLabel = isLast ? (hasAudioClips ? "[xfadeaudio]" : "[outa]") : `[acat${i}]`;
 
 			filterParts.push(`${lastVideoLabel}[v${i}]concat=n=2:v=1:a=0${vOutLabel}`);
 			filterParts.push(`${lastAudioLabel}[a${i}]concat=n=2:v=0:a=1${aOutLabel}`);
@@ -314,6 +445,12 @@ function buildXfadeArgs(
 			filterParts.push(`${srcLabel}${textFilters[i]}${outLabel}`);
 			srcLabel = outLabel;
 		}
+	}
+
+	// 오디오 믹싱
+	if (hasAudioClips) {
+		const audioMix = buildAudioMixFilter(audioClips, inputIndices, "[xfadeaudio]");
+		filterParts.push(...audioMix.filterParts);
 	}
 
 	args.push("-filter_complex", filterParts.join(";"));
