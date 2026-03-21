@@ -95,7 +95,7 @@ export function usePreviewRenderer(
 				}
 
 				entry.sprite.visible = true;
-				fit(entry.sprite, pw, ph);
+				fitSprite(entry.sprite, pw, ph);
 
 				if (entry.video) {
 					syncVideo(entry.video, vc.localTime);
@@ -192,7 +192,7 @@ export function usePreviewRenderer(
 			}
 		};
 
-		const fit = (sprite: Sprite, pw: number, ph: number) => {
+		const fitSprite = (sprite: Sprite, pw: number, ph: number) => {
 			const tw = sprite.texture.width;
 			const th = sprite.texture.height;
 			if (tw === 0 || th === 0) return;

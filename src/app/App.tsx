@@ -17,7 +17,7 @@ function getTypeIcon(type: string): string {
 }
 
 export function App() {
-	const { handleDragEnd } = useTimelineDragDrop();
+	const { handleDragEnd, handleDragMove, clearIndicator } = useTimelineDragDrop();
 	const [dragInfo, setDragInfo] = useState<{ name: string; type: string } | null>(null);
 	const sensors = useSensors(
 		useSensor(PointerSensor, {
@@ -35,15 +35,18 @@ export function App() {
 					if (asset) {
 						setDragInfo({ name: asset.name, type: asset.type });
 					}
-				} else if (data?.type === DND_TYPES.TIMELINE_CLIP) {
-					setDragInfo({ name: "클립", type: "video" });
 				}
 			}}
+			onDragMove={handleDragMove}
 			onDragEnd={(event) => {
 				handleDragEnd(event);
+				clearIndicator();
 				setDragInfo(null);
 			}}
-			onDragCancel={() => setDragInfo(null)}
+			onDragCancel={() => {
+				clearIndicator();
+				setDragInfo(null);
+			}}
 		>
 			<EditorLayout
 				header={<Header />}

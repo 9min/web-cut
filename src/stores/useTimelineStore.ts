@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { Clip, Track } from "@/types/timeline";
 import { splitClipAt, trimClip } from "@/utils/editUtils";
 import { generateId } from "@/utils/generateId";
+import { findDropIndex, reorderAndCompact } from "@/utils/timelineUtils";
 
 interface TimelineState {
 	tracks: Track[];
@@ -11,6 +12,12 @@ interface TimelineState {
 	addClip: (trackId: string, clip: Clip) => void;
 	removeClip: (trackId: string, clipId: string) => void;
 	moveClip: (fromTrackId: string, clipId: string, toTrackId: string, newStartTime: number) => void;
+	insertClipAt: (
+		fromTrackId: string,
+		clipId: string,
+		toTrackId: string,
+		newStartTime: number,
+	) => void;
 	splitClip: (trackId: string, clipId: string, splitTime: number) => void;
 	trimClipAction: (
 		trackId: string,
@@ -21,6 +28,31 @@ interface TimelineState {
 	removeClipsByAssetId: (assetId: string) => void;
 	selectClip: (clipId: string | null) => void;
 	reset: () => void;
+}
+
+/** 삽입 구간과 겹치는 클립들을 연쇄적으로 뒤로 밀어낸다 */
+function pushClipsRight(clips: Clip[], insertStart: number, insertEnd: number): Clip[] {
+	const sorted = [...clips].sort((a, b) => a.startTime - b.startTime);
+	const result: Clip[] = [];
+	let currentEnd = insertEnd;
+
+	for (const clip of sorted) {
+		const clipEnd = clip.startTime + clip.duration;
+		if (clip.startTime < currentEnd && clipEnd > insertStart) {
+			// 겹침 → 뒤로 밀어냄
+			const pushed = { ...clip, startTime: currentEnd };
+			currentEnd = pushed.startTime + pushed.duration;
+			result.push(pushed);
+		} else if (clip.startTime >= currentEnd) {
+			// 겹치지 않음 → 그대로
+			result.push(clip);
+		} else {
+			// insertStart 이전에 끝나는 클립 → 그대로
+			result.push(clip);
+		}
+	}
+
+	return result;
 }
 
 const DEFAULT_TRACK: Track = {
@@ -93,6 +125,40 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
 				}),
 			}));
 		}
+	},
+
+	insertClipAt: (fromTrackId, clipId, toTrackId, newStartTime) => {
+		const clip = get()
+			.tracks.find((t) => t.id === fromTrackId)
+			?.clips.find((c) => c.id === clipId);
+		if (!clip) return;
+
+		const movedClip = { ...clip, trackId: toTrackId, startTime: newStartTime };
+		const insertEnd = newStartTime + clip.duration;
+
+		set((state) => ({
+			tracks: state.tracks.map((t) => {
+				if (t.id === fromTrackId && fromTrackId === toTrackId) {
+					// 같은 트랙: 인덱스 기반 리오더
+					const otherClips = t.clips
+						.filter((c) => c.id !== clipId)
+						.sort((a, b) => a.startTime - b.startTime);
+					const dropIndex = findDropIndex(otherClips, newStartTime);
+					const reordered = reorderAndCompact(otherClips, movedClip, dropIndex);
+					return { ...t, clips: reordered };
+				}
+				if (t.id === fromTrackId) {
+					// 원래 트랙에서 제거
+					return { ...t, clips: t.clips.filter((c) => c.id !== clipId) };
+				}
+				if (t.id === toTrackId) {
+					// 대상 트랙: 밀어내기 → 삽입
+					const pushed = pushClipsRight(t.clips, newStartTime, insertEnd);
+					return { ...t, clips: [...pushed, movedClip] };
+				}
+				return t;
+			}),
+		}));
 	},
 
 	splitClip: (trackId, clipId, splitTime) => {
