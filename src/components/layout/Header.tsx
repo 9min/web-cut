@@ -64,7 +64,7 @@ export function Header() {
 				<button
 					type="button"
 					onClick={handleSave}
-					className="flex items-center gap-1 rounded bg-gray-700 px-3 py-1.5 text-xs font-medium text-gray-200 hover:bg-gray-600"
+					className="flex items-center gap-1 rounded bg-gray-700 px-3 py-2 text-xs font-medium text-gray-200 hover:bg-gray-600 md:py-1.5"
 					aria-label="프로젝트 저장"
 				>
 					<Save size={14} />
@@ -73,7 +73,7 @@ export function Header() {
 				<button
 					type="button"
 					onClick={handleLoad}
-					className="flex items-center gap-1 rounded bg-gray-700 px-3 py-1.5 text-xs font-medium text-gray-200 hover:bg-gray-600"
+					className="flex items-center gap-1 rounded bg-gray-700 px-3 py-2 text-xs font-medium text-gray-200 hover:bg-gray-600 md:py-1.5"
 					aria-label="프로젝트 불러오기"
 				>
 					<FolderOpen size={14} />
@@ -90,7 +90,7 @@ export function Header() {
 					ref={exportButtonRef}
 					type="button"
 					onClick={() => setShowExport(!showExport)}
-					className="flex items-center gap-1 rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-500"
+					className="flex items-center gap-1 rounded bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-500 md:py-1.5"
 				>
 					<Download size={14} />
 					내보내기

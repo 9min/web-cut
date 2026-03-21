@@ -11,6 +11,8 @@ import {
 	TEXT_POSITION_MIN,
 	TEXT_POSITION_STEP,
 } from "@/constants/textOverlay";
+import { useDebouncedSnapshot } from "@/hooks/useDebouncedSnapshot";
+import { useHistoryStore } from "@/stores/useHistoryStore";
 import { useTimelineStore } from "@/stores/useTimelineStore";
 import type { TextOverlay } from "@/types/textOverlay";
 
@@ -30,15 +32,18 @@ export function TextOverlayPanel({
 	duration,
 }: TextOverlayPanelProps) {
 	const { updateTextClipOverlay, updateTextClip, removeTextClip } = useTimelineStore();
+	const { scheduleSnapshot } = useDebouncedSnapshot();
 
 	const handleContentChange = useCallback(
 		(value: string) => {
+			scheduleSnapshot();
 			updateTextClipOverlay(trackId, textClipId, { content: value });
 		},
-		[trackId, textClipId, updateTextClipOverlay],
+		[trackId, textClipId, updateTextClipOverlay, scheduleSnapshot],
 	);
 
 	const handleRemove = useCallback(() => {
+		useHistoryStore.getState().pushSnapshot();
 		removeTextClip(trackId, textClipId);
 	}, [trackId, textClipId, removeTextClip]);
 
@@ -69,9 +74,10 @@ export function TextOverlayPanel({
 					min={0}
 					step={0.1}
 					value={startTime}
-					onChange={(e) =>
-						updateTextClip(trackId, textClipId, { startTime: Math.max(0, Number(e.target.value)) })
-					}
+					onChange={(e) => {
+						scheduleSnapshot();
+						updateTextClip(trackId, textClipId, { startTime: Math.max(0, Number(e.target.value)) });
+					}}
 					className="w-full rounded border border-gray-600 bg-gray-800 px-2 py-1 text-xs text-gray-200"
 					data-testid="text-clip-startTime"
 				/>
@@ -84,9 +90,12 @@ export function TextOverlayPanel({
 					min={0.5}
 					step={0.1}
 					value={duration}
-					onChange={(e) =>
-						updateTextClip(trackId, textClipId, { duration: Math.max(0.5, Number(e.target.value)) })
-					}
+					onChange={(e) => {
+						scheduleSnapshot();
+						updateTextClip(trackId, textClipId, {
+							duration: Math.max(0.5, Number(e.target.value)),
+						});
+					}}
 					className="w-full rounded border border-gray-600 bg-gray-800 px-2 py-1 text-xs text-gray-200"
 					data-testid="text-clip-duration"
 				/>
@@ -103,9 +112,10 @@ export function TextOverlayPanel({
 					max={TEXT_POSITION_MAX}
 					step={TEXT_POSITION_STEP}
 					value={overlay.x}
-					onChange={(e) =>
-						updateTextClipOverlay(trackId, textClipId, { x: Number(e.target.value) })
-					}
+					onChange={(e) => {
+						scheduleSnapshot();
+						updateTextClipOverlay(trackId, textClipId, { x: Number(e.target.value) });
+					}}
 					className="w-full"
 					data-testid="text-overlay-x"
 				/>
@@ -122,9 +132,10 @@ export function TextOverlayPanel({
 					max={TEXT_POSITION_MAX}
 					step={TEXT_POSITION_STEP}
 					value={overlay.y}
-					onChange={(e) =>
-						updateTextClipOverlay(trackId, textClipId, { y: Number(e.target.value) })
-					}
+					onChange={(e) => {
+						scheduleSnapshot();
+						updateTextClipOverlay(trackId, textClipId, { y: Number(e.target.value) });
+					}}
 					className="w-full"
 					data-testid="text-overlay-y"
 				/>
@@ -141,9 +152,10 @@ export function TextOverlayPanel({
 					max={TEXT_FONT_SIZE_MAX}
 					step={TEXT_FONT_SIZE_STEP}
 					value={overlay.fontSize}
-					onChange={(e) =>
-						updateTextClipOverlay(trackId, textClipId, { fontSize: Number(e.target.value) })
-					}
+					onChange={(e) => {
+						scheduleSnapshot();
+						updateTextClipOverlay(trackId, textClipId, { fontSize: Number(e.target.value) });
+					}}
 					className="w-full"
 					data-testid="text-overlay-fontSize"
 				/>
@@ -157,9 +169,10 @@ export function TextOverlayPanel({
 				<input
 					type="color"
 					value={overlay.fontColor}
-					onChange={(e) =>
-						updateTextClipOverlay(trackId, textClipId, { fontColor: e.target.value })
-					}
+					onChange={(e) => {
+						scheduleSnapshot();
+						updateTextClipOverlay(trackId, textClipId, { fontColor: e.target.value });
+					}}
 					className="h-8 w-full cursor-pointer"
 					data-testid="text-overlay-fontColor"
 				/>
@@ -176,9 +189,10 @@ export function TextOverlayPanel({
 					max={TEXT_OPACITY_MAX}
 					step={TEXT_OPACITY_STEP}
 					value={overlay.opacity}
-					onChange={(e) =>
-						updateTextClipOverlay(trackId, textClipId, { opacity: Number(e.target.value) })
-					}
+					onChange={(e) => {
+						scheduleSnapshot();
+						updateTextClipOverlay(trackId, textClipId, { opacity: Number(e.target.value) });
+					}}
 					className="w-full"
 					data-testid="text-overlay-opacity"
 				/>

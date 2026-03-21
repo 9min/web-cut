@@ -10,6 +10,8 @@ import {
 	TRANSFORM_SCALE_MIN,
 	TRANSFORM_SCALE_STEP,
 } from "@/constants/transform";
+import { useDebouncedSnapshot } from "@/hooks/useDebouncedSnapshot";
+import { useHistoryStore } from "@/stores/useHistoryStore";
 import { useTimelineStore } from "@/stores/useTimelineStore";
 import type { ClipTransform } from "@/types/timeline";
 
@@ -22,8 +24,18 @@ interface TransformPanelProps {
 export function TransformPanel({ trackId, clipId, transform }: TransformPanelProps) {
 	const updateTransform = useTimelineStore((s) => s.updateTransform);
 	const resetTransform = useTimelineStore((s) => s.resetTransform);
+	const { scheduleSnapshot } = useDebouncedSnapshot();
+
+	const handleChange = useCallback(
+		(partial: Partial<ClipTransform>) => {
+			scheduleSnapshot();
+			updateTransform(trackId, clipId, partial);
+		},
+		[trackId, clipId, updateTransform, scheduleSnapshot],
+	);
 
 	const handleReset = useCallback(() => {
+		useHistoryStore.getState().pushSnapshot();
 		resetTransform(trackId, clipId);
 	}, [trackId, clipId, resetTransform]);
 
@@ -42,7 +54,7 @@ export function TransformPanel({ trackId, clipId, transform }: TransformPanelPro
 					max={TRANSFORM_POSITION_MAX}
 					step={TRANSFORM_POSITION_STEP}
 					value={transform.x}
-					onChange={(e) => updateTransform(trackId, clipId, { x: Number(e.target.value) })}
+					onChange={(e) => handleChange({ x: Number(e.target.value) })}
 					className="w-full"
 					data-testid="transform-x"
 				/>
@@ -59,7 +71,7 @@ export function TransformPanel({ trackId, clipId, transform }: TransformPanelPro
 					max={TRANSFORM_POSITION_MAX}
 					step={TRANSFORM_POSITION_STEP}
 					value={transform.y}
-					onChange={(e) => updateTransform(trackId, clipId, { y: Number(e.target.value) })}
+					onChange={(e) => handleChange({ y: Number(e.target.value) })}
 					className="w-full"
 					data-testid="transform-y"
 				/>
@@ -76,7 +88,7 @@ export function TransformPanel({ trackId, clipId, transform }: TransformPanelPro
 					max={TRANSFORM_SCALE_MAX}
 					step={TRANSFORM_SCALE_STEP}
 					value={transform.scaleX}
-					onChange={(e) => updateTransform(trackId, clipId, { scaleX: Number(e.target.value) })}
+					onChange={(e) => handleChange({ scaleX: Number(e.target.value) })}
 					className="w-full"
 					data-testid="transform-scaleX"
 				/>
@@ -93,7 +105,7 @@ export function TransformPanel({ trackId, clipId, transform }: TransformPanelPro
 					max={TRANSFORM_SCALE_MAX}
 					step={TRANSFORM_SCALE_STEP}
 					value={transform.scaleY}
-					onChange={(e) => updateTransform(trackId, clipId, { scaleY: Number(e.target.value) })}
+					onChange={(e) => handleChange({ scaleY: Number(e.target.value) })}
 					className="w-full"
 					data-testid="transform-scaleY"
 				/>
@@ -110,7 +122,7 @@ export function TransformPanel({ trackId, clipId, transform }: TransformPanelPro
 					max={TRANSFORM_ROTATION_MAX}
 					step={TRANSFORM_ROTATION_STEP}
 					value={transform.rotation}
-					onChange={(e) => updateTransform(trackId, clipId, { rotation: Number(e.target.value) })}
+					onChange={(e) => handleChange({ rotation: Number(e.target.value) })}
 					className="w-full"
 					data-testid="transform-rotation"
 				/>

@@ -31,17 +31,22 @@ export function usePixiApp(containerRef: React.RefObject<HTMLDivElement | null>)
 				setReady(true);
 			});
 
-		// 컨테이너 크기 변경 시 PixiJS 캔버스도 리사이즈
+		// 컨테이너 크기 변경 시 PixiJS 캔버스도 리사이즈 (100ms 디바운스)
+		let resizeTimer: ReturnType<typeof setTimeout> | null = null;
 		const ro = new ResizeObserver(() => {
-			if (appRef.current) {
-				appRef.current.resize();
-			}
+			if (resizeTimer) clearTimeout(resizeTimer);
+			resizeTimer = setTimeout(() => {
+				if (appRef.current) {
+					appRef.current.resize();
+				}
+			}, 100);
 		});
 		ro.observe(container);
 
 		return () => {
 			cancelled = true;
 			setReady(false);
+			if (resizeTimer) clearTimeout(resizeTimer);
 			ro.disconnect();
 			if (canvasRef.current?.parentNode) {
 				canvasRef.current.parentNode.removeChild(canvasRef.current);

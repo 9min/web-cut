@@ -1,10 +1,15 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TrackRow } from "@/components/timeline/TrackRow";
+import { usePlaybackStore } from "@/stores/usePlaybackStore";
 import { createTestClip, createTestTrack } from "../../factories/timelineFactory";
 
 describe("TrackRow", () => {
+	beforeEach(() => {
+		usePlaybackStore.getState().reset();
+	});
+
 	it("트랙 이름을 렌더링한다", () => {
 		const track = createTestTrack({ name: "비디오 1" });
 		render(<TrackRow track={track} zoom={100} selectedClipId={null} onSelectClip={vi.fn()} />);
@@ -58,6 +63,7 @@ describe("TrackRow", () => {
 		const user = userEvent.setup();
 		const track = createTestTrack({ id: "text-track-1", type: "text" });
 		const onAddTextClip = vi.fn();
+		usePlaybackStore.getState().seek(2.5);
 		render(
 			<TrackRow
 				track={track}
@@ -65,7 +71,6 @@ describe("TrackRow", () => {
 				selectedClipId={null}
 				onSelectClip={vi.fn()}
 				onAddTextClip={onAddTextClip}
-				currentTime={2.5}
 			/>,
 		);
 

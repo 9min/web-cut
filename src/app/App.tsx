@@ -6,6 +6,7 @@ import { Header } from "@/components/layout/Header";
 import { MediaPool } from "@/components/media-pool/MediaPool";
 import { PreviewPanel } from "@/components/preview/PreviewPanel";
 import { Timeline } from "@/components/timeline/Timeline";
+import { KeyboardShortcutHelp } from "@/components/ui/KeyboardShortcutHelp";
 import { useTimelineDragDrop } from "@/hooks/useTimelineDragDrop";
 import { useMediaStore } from "@/stores/useMediaStore";
 import type { DragData } from "@/types/dnd";
@@ -64,6 +65,7 @@ export function App() {
 					</div>
 				)}
 			</DragOverlay>
+			<KeyboardShortcutHelp />
 		</DndContext>
 	);
 }
