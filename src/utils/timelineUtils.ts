@@ -35,6 +35,12 @@ export function getTimelineDuration(tracks: Track[]): number {
 	return Math.max(...tracks.map(getTrackDuration));
 }
 
+export interface DropPositionResult {
+	position: number;
+	snapped: boolean;
+	snapPoint: number;
+}
+
 /** 드래그 중/드롭 시 예상 위치를 계산하는 순수 함수 */
 export function calculateDropPosition(
 	clipStartTime: number,
@@ -42,7 +48,7 @@ export function calculateDropPosition(
 	deltaX: number,
 	zoom: number,
 	otherClips: Clip[],
-): number {
+): DropPositionResult {
 	const deltaTime = (Math.abs(deltaX) / zoom) * (deltaX < 0 ? -1 : 1);
 	let newStartTime = Math.max(0, clipStartTime + deltaTime);
 
@@ -76,13 +82,21 @@ export function calculateDropPosition(
 		}
 	}
 
+	let snapped = false;
+	let snapPoint = newStartTime;
+
 	if (snappedStart !== newStartTime) {
 		newStartTime = snappedStart;
+		snapped = true;
+		snapPoint = snappedStart;
 	} else if (snappedEnd !== clipEnd) {
 		newStartTime = snappedEnd - clipDuration;
+		snapped = true;
+		snapPoint = snappedEnd;
 	}
 
-	return Math.max(0, newStartTime);
+	const finalPosition = Math.max(0, newStartTime);
+	return { position: finalPosition, snapped, snapPoint: snapped ? snapPoint : finalPosition };
 }
 
 /** midpoint 규칙으로 삽입 인덱스 결정 (sortedClips 필수) */

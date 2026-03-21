@@ -4,7 +4,7 @@ import { useExportStore } from "@/stores/useExportStore";
 import { useMediaStore } from "@/stores/useMediaStore";
 import { useProjectStore } from "@/stores/useProjectStore";
 import { useTimelineStore } from "@/stores/useTimelineStore";
-import { buildFFmpegArgs, getSortedVideoClips } from "@/utils/exportUtils";
+import { buildFFmpegArgs, getSortedAudioClips, getSortedVideoClips } from "@/utils/exportUtils";
 
 export function useExport() {
 	const status = useExportStore((s) => s.status);
@@ -34,6 +34,7 @@ export function useExport() {
 			const assetFileMap = new Map<string, string>();
 			const writtenAssets = new Set<string>();
 
+			// 비디오 클립 에셋 쓰기
 			for (const clip of clips) {
 				if (writtenAssets.has(clip.assetId)) continue;
 
@@ -45,6 +46,27 @@ export function useExport() {
 				await writeInputFile(ff, fileName, asset.objectUrl);
 				assetFileMap.set(clip.assetId, fileName);
 				writtenAssets.add(clip.assetId);
+			}
+
+			// 오디오 클립 에셋 쓰기
+			const audioClips = getSortedAudioClips(tracks);
+			for (const audioClip of audioClips) {
+				if (writtenAssets.has(audioClip.assetId)) continue;
+
+				const asset = assets.find((a) => a.id === audioClip.assetId);
+				if (!asset) continue;
+
+				const ext = asset.mimeType.includes("mp3")
+					? "mp3"
+					: asset.mimeType.includes("wav")
+						? "wav"
+						: asset.mimeType.includes("ogg")
+							? "ogg"
+							: "mp3";
+				const fileName = `input_${audioClip.assetId}.${ext}`;
+				await writeInputFile(ff, fileName, asset.objectUrl);
+				assetFileMap.set(audioClip.assetId, fileName);
+				writtenAssets.add(audioClip.assetId);
 			}
 
 			// FFmpeg 실행

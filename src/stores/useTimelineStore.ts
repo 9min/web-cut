@@ -43,6 +43,8 @@ interface TimelineState {
 	updateClipVolume: (trackId: string, clipId: string, volume: number) => void;
 	updateTransform: (trackId: string, clipId: string, updates: Partial<ClipTransform>) => void;
 	resetTransform: (trackId: string, clipId: string) => void;
+	toggleTrackMuted: (trackId: string) => void;
+	toggleTrackLocked: (trackId: string) => void;
 	addTextTrack: () => void;
 	addTextClip: (trackId: string, textClip: TextClip) => void;
 	updateTextClip: (
@@ -433,6 +435,16 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
 			),
 		}));
 	},
+
+	toggleTrackMuted: (trackId) =>
+		set((state) => ({
+			tracks: state.tracks.map((t) => (t.id === trackId ? { ...t, muted: !t.muted } : t)),
+		})),
+
+	toggleTrackLocked: (trackId) =>
+		set((state) => ({
+			tracks: state.tracks.map((t) => (t.id === trackId ? { ...t, locked: !t.locked } : t)),
+		})),
 
 	addTextTrack: () => {
 		const { tracks } = get();

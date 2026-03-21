@@ -182,6 +182,7 @@ export function usePreviewRenderer(
 
 				if (entry.video) {
 					syncVideo(entry.video, vc.localTime);
+					entry.video.muted = !!vc.muted;
 				}
 			}
 

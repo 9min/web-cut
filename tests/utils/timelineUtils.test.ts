@@ -138,26 +138,26 @@ describe("calculateDropPosition", () => {
 	it("deltaX를 시간으로 변환하여 새 위치를 계산한다", () => {
 		// 클립 시작 2초, deltaX 300px (zoom 100) = 3초 이동 → 5초
 		const result = calculateDropPosition(2, 3, 300, ZOOM, []);
-		expect(result).toBe(5);
+		expect(result.position).toBe(5);
 	});
 
 	it("음수 deltaX로 왼쪽 이동한다", () => {
 		// 클립 시작 5초, deltaX -200px = -2초 이동 → 3초
 		const result = calculateDropPosition(5, 3, -200, ZOOM, []);
-		expect(result).toBe(3);
+		expect(result.position).toBe(3);
 	});
 
 	it("결과가 0 미만이면 0으로 클램핑한다", () => {
 		// 클립 시작 1초, deltaX -500px = -5초 이동 → -4초 → 0으로 클램핑
 		const result = calculateDropPosition(1, 3, -500, ZOOM, []);
-		expect(result).toBe(0);
+		expect(result.position).toBe(0);
 	});
 
 	it("다른 클립의 시작 지점에 스냅한다", () => {
 		// 클립 시작 0초, deltaX 495px (4.95초) → 클립B 시작(5초)에 스냅
 		const otherClips = [makeClip(5, 3, "B")];
 		const result = calculateDropPosition(0, 2, 495, ZOOM, otherClips);
-		expect(result).toBe(5);
+		expect(result.position).toBe(5);
 	});
 
 	it("다른 클립의 끝 지점에 스냅한다", () => {
@@ -166,19 +166,19 @@ describe("calculateDropPosition", () => {
 		// 끝(7.93) → 클립B 끝(8초)과 거리 0.07 → 스냅됨 → startTime = 8 - 2 = 6
 		const otherClips = [makeClip(5, 3, "B")]; // B는 5-8초
 		const result = calculateDropPosition(0, 2, 593, ZOOM, otherClips);
-		expect(result).toBe(6);
+		expect(result.position).toBe(6);
 	});
 
 	it("스냅 범위 밖이면 스냅하지 않는다", () => {
 		// 클립 시작 0초, deltaX 300px (3초) → 클립B(5초)와 2초 떨어짐 → 스냅 안됨
 		const otherClips = [makeClip(5, 3, "B")];
 		const result = calculateDropPosition(0, 2, 300, ZOOM, otherClips);
-		expect(result).toBe(3);
+		expect(result.position).toBe(3);
 	});
 
 	it("빈 클립 목록에서는 deltaX만 반영한다", () => {
 		const result = calculateDropPosition(0, 3, 200, ZOOM, []);
-		expect(result).toBe(2);
+		expect(result.position).toBe(2);
 	});
 
 	it("resolveOverlapSnap 없이 겹침이 있어도 계산된 위치를 그대로 반환한다", () => {
@@ -186,7 +186,7 @@ describe("calculateDropPosition", () => {
 		// resolveOverlapSnap이 없으므로 1초 그대로 반환 (insertClipAt이 처리)
 		const otherClips = [makeClip(0, 5, "B")];
 		const result = calculateDropPosition(0, 3, 100, ZOOM, otherClips);
-		expect(result).toBe(1);
+		expect(result.position).toBe(1);
 	});
 });
 
