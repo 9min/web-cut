@@ -6,6 +6,8 @@ import {
 	FILTER_STEP,
 	FILTER_TYPES,
 } from "@/constants/filter";
+import { useDebouncedSnapshot } from "@/hooks/useDebouncedSnapshot";
+import { useHistoryStore } from "@/stores/useHistoryStore";
 import { useTimelineStore } from "@/stores/useTimelineStore";
 import type { ClipFilter, FilterType } from "@/types/filter";
 
@@ -17,15 +19,18 @@ interface FilterPanelProps {
 
 export function FilterPanel({ trackId, clipId, filter }: FilterPanelProps) {
 	const { updateFilter, resetFilter } = useTimelineStore();
+	const { scheduleSnapshot } = useDebouncedSnapshot();
 
 	const handleChange = useCallback(
 		(type: FilterType, value: number) => {
+			scheduleSnapshot();
 			updateFilter(trackId, clipId, { [type]: value });
 		},
-		[trackId, clipId, updateFilter],
+		[trackId, clipId, updateFilter, scheduleSnapshot],
 	);
 
 	const handleReset = useCallback(() => {
+		useHistoryStore.getState().pushSnapshot();
 		resetFilter(trackId, clipId);
 	}, [trackId, clipId, resetFilter]);
 

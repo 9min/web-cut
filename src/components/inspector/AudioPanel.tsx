@@ -5,6 +5,8 @@ import {
 	AUDIO_VOLUME_MIN,
 	AUDIO_VOLUME_STEP,
 } from "@/constants/audio";
+import { useDebouncedSnapshot } from "@/hooks/useDebouncedSnapshot";
+import { useHistoryStore } from "@/stores/useHistoryStore";
 import { useTimelineStore } from "@/stores/useTimelineStore";
 
 interface AudioPanelProps {
@@ -15,15 +17,18 @@ interface AudioPanelProps {
 
 export function AudioPanel({ trackId, clipId, volume }: AudioPanelProps) {
 	const updateClipVolume = useTimelineStore((s) => s.updateClipVolume);
+	const { scheduleSnapshot } = useDebouncedSnapshot();
 
 	const handleVolumeChange = useCallback(
 		(value: number) => {
+			scheduleSnapshot();
 			updateClipVolume(trackId, clipId, value);
 		},
-		[trackId, clipId, updateClipVolume],
+		[trackId, clipId, updateClipVolume, scheduleSnapshot],
 	);
 
 	const handleReset = useCallback(() => {
+		useHistoryStore.getState().pushSnapshot();
 		updateClipVolume(trackId, clipId, AUDIO_VOLUME_DEFAULT);
 	}, [trackId, clipId, updateClipVolume]);
 

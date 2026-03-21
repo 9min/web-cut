@@ -61,7 +61,7 @@ export function TimelineToolbar({
 					type="button"
 					onClick={onSplit}
 					disabled={!canSplit}
-					className="rounded p-1 text-gray-400 hover:bg-gray-700 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400"
+					className="rounded p-2 text-gray-400 hover:bg-gray-700 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 md:p-1"
 					aria-label="분할"
 					title="분할 (⌘S)"
 				>
@@ -71,7 +71,7 @@ export function TimelineToolbar({
 					type="button"
 					onClick={onDelete}
 					disabled={!canDelete}
-					className="rounded p-1 text-gray-400 hover:bg-gray-700 hover:text-red-400 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400"
+					className="rounded p-2 text-gray-400 hover:bg-gray-700 hover:text-red-400 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 md:p-1"
 					aria-label="삭제"
 					title="삭제 (Delete/Backspace)"
 				>
@@ -82,7 +82,7 @@ export function TimelineToolbar({
 				<button
 					type="button"
 					onClick={onZoomOut}
-					className="rounded p-1 text-gray-400 hover:bg-gray-700 hover:text-white"
+					className="rounded p-2 text-gray-400 hover:bg-gray-700 hover:text-white md:p-1"
 					aria-label="축소"
 					title="축소"
 				>
@@ -94,7 +94,7 @@ export function TimelineToolbar({
 				<button
 					type="button"
 					onClick={onZoomIn}
-					className="rounded p-1 text-gray-400 hover:bg-gray-700 hover:text-white"
+					className="rounded p-2 text-gray-400 hover:bg-gray-700 hover:text-white md:p-1"
 					aria-label="확대"
 					title="확대"
 				>

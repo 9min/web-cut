@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { TIME_RULER_HEIGHT } from "@/constants/timeline";
 import { pixelToTime, timeToPixel } from "@/utils/timelineUtils";
 
@@ -14,6 +14,8 @@ function getTickInterval(zoom: number): number {
 	if (zoom >= 50) return 5;
 	return 10;
 }
+
+const BUFFER_PX = 100;
 
 export function TimeRuler({ zoom, duration, onSeek, scrollLeft }: TimeRulerProps) {
 	const ref = useRef<HTMLDivElement>(null);
@@ -54,7 +56,24 @@ export function TimeRuler({ zoom, duration, onSeek, scrollLeft }: TimeRulerProps
 
 	const totalWidth = timeToPixel(Math.max(duration, 30), zoom);
 	const interval = getTickInterval(zoom);
-	const tickCount = Math.ceil(Math.max(duration, 30) / interval) + 1;
+
+	const ticks = useMemo(() => {
+		const tickCount = Math.ceil(Math.max(duration, 30) / interval) + 1;
+		return Array.from({ length: tickCount }, (_, i) => {
+			const time = i * interval;
+			const x = timeToPixel(time, zoom);
+			const minutes = Math.floor(time / 60);
+			const seconds = time % 60;
+			const label = `${minutes}:${String(seconds).padStart(2, "0")}`;
+			return { time, x, label };
+		});
+	}, [zoom, duration, interval]);
+
+	const viewportWidth = ref.current?.parentElement?.clientWidth ?? 1200;
+	const visibleMin = scrollLeft - BUFFER_PX;
+	const visibleMax = scrollLeft + viewportWidth + BUFFER_PX;
+
+	const visibleTicks = ticks.filter((t) => t.x >= visibleMin && t.x <= visibleMax);
 
 	return (
 		<div
@@ -74,21 +93,12 @@ export function TimeRuler({ zoom, duration, onSeek, scrollLeft }: TimeRulerProps
 				if (e.key === "ArrowLeft") onSeek(pixelToTime(Math.max(0, scrollLeft - 10), zoom));
 			}}
 		>
-			{Array.from({ length: tickCount }, (_, i) => {
-				const time = i * interval;
-				const x = timeToPixel(time, zoom);
-				const minutes = Math.floor(time / 60);
-				const seconds = time % 60;
-				const label = `${minutes}:${String(seconds).padStart(2, "0")}`;
-				return (
-					<div key={time} className="absolute top-0" style={{ left: x }}>
-						<div className="h-2 w-px bg-gray-600" />
-						<span className="absolute top-2 -translate-x-1/2 text-[9px] text-gray-500">
-							{label}
-						</span>
-					</div>
-				);
-			})}
+			{visibleTicks.map(({ time, x, label }) => (
+				<div key={time} className="absolute top-0" style={{ left: x }}>
+					<div className="h-2 w-px bg-gray-600" />
+					<span className="absolute top-2 -translate-x-1/2 text-[9px] text-gray-500">{label}</span>
+				</div>
+			))}
 		</div>
 	);
 }

@@ -1,7 +1,11 @@
 import { useEffect } from "react";
+import { DEFAULT_ZOOM } from "@/constants/timeline";
 import { useHistoryStore } from "@/stores/useHistoryStore";
 import { usePlaybackStore } from "@/stores/usePlaybackStore";
+import { useProjectStore } from "@/stores/useProjectStore";
 import { useTimelineStore } from "@/stores/useTimelineStore";
+import { useUIStore } from "@/stores/useUIStore";
+import { useZoomStore } from "@/stores/useZoomStore";
 
 function handlePlaybackToggle(e: KeyboardEvent): void {
 	e.preventDefault();
@@ -54,11 +58,53 @@ function handleUndoRedo(e: KeyboardEvent): void {
 	}
 }
 
+function handleEscape(): void {
+	const { showShortcutHelp, toggleShortcutHelp } = useUIStore.getState();
+	if (showShortcutHelp) {
+		toggleShortcutHelp();
+	} else {
+		useTimelineStore.getState().selectClip(null);
+	}
+}
+
+function handleFrameStep(direction: number): void {
+	const { currentTime, duration } = usePlaybackStore.getState();
+	const fps = useProjectStore.getState().fps;
+	const newTime = Math.max(0, Math.min(duration, currentTime + direction / fps));
+	usePlaybackStore.getState().seek(newTime);
+}
+
+function handleTimeSkip(seconds: number): void {
+	const { currentTime, duration } = usePlaybackStore.getState();
+	const newTime = Math.max(0, Math.min(duration, currentTime + seconds));
+	usePlaybackStore.getState().seek(newTime);
+}
+
+function handleJumpToStart(): void {
+	usePlaybackStore.getState().seek(0);
+}
+
+function handleJumpToEnd(): void {
+	const { duration } = usePlaybackStore.getState();
+	usePlaybackStore.getState().seek(duration);
+}
+
+function handleZoom(action: "in" | "out" | "reset", e: KeyboardEvent): void {
+	e.preventDefault();
+	const { zoomIn, zoomOut, setZoom } = useZoomStore.getState();
+	if (action === "in") zoomIn();
+	else if (action === "out") zoomOut();
+	else setZoom(DEFAULT_ZOOM);
+}
+
 export function useEditorKeyboard(): void {
 	useEffect(() => {
+		// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: 단축키 매핑은 switch 구조상 복잡도가 높음
 		const handleKeyDown = (e: KeyboardEvent) => {
 			const tag = (e.target as HTMLElement).tagName;
 			if (tag === "INPUT" || tag === "TEXTAREA") return;
+
+			const hasModifier = e.ctrlKey || e.metaKey;
 
 			switch (e.code) {
 				case "Space":
@@ -70,6 +116,38 @@ export function useEditorKeyboard(): void {
 					return handleSplitClip(e);
 				case "KeyZ":
 					return handleUndoRedo(e);
+				case "Escape":
+					return handleEscape();
+				case "ArrowLeft":
+					e.preventDefault();
+					return e.shiftKey ? handleTimeSkip(-5) : handleFrameStep(-1);
+				case "ArrowRight":
+					e.preventDefault();
+					return e.shiftKey ? handleTimeSkip(5) : handleFrameStep(1);
+				case "Home":
+					e.preventDefault();
+					return handleJumpToStart();
+				case "End":
+					e.preventDefault();
+					return handleJumpToEnd();
+				case "Equal":
+				case "NumpadAdd":
+					if (hasModifier) return handleZoom("in", e);
+					break;
+				case "Minus":
+				case "NumpadSubtract":
+					if (hasModifier) return handleZoom("out", e);
+					break;
+				case "Digit0":
+				case "Numpad0":
+					if (hasModifier) return handleZoom("reset", e);
+					break;
+				case "Slash":
+					if (e.shiftKey) {
+						e.preventDefault();
+						useUIStore.getState().toggleShortcutHelp();
+					}
+					break;
 			}
 		};
 

@@ -9,7 +9,7 @@ import { dropIndicatorMap } from "@/utils/dropIndicatorRefs";
 import { generateId } from "@/utils/generateId";
 import { snapIndicatorMap } from "@/utils/snapIndicatorRefs";
 import { createDefaultTextClip } from "@/utils/textClipUtils";
-import { getTimelineDuration, timeToPixel } from "@/utils/timelineUtils";
+import { getTimelineDuration } from "@/utils/timelineUtils";
 import { PlaybackControls } from "./PlaybackControls";
 import { Playhead } from "./Playhead";
 import { TimelineToolbar } from "./TimelineToolbar";
@@ -30,7 +30,6 @@ export function Timeline() {
 	const addTextClip = useTimelineStore((s) => s.addTextClip);
 	const toggleTrackMuted = useTimelineStore((s) => s.toggleTrackMuted);
 	const toggleTrackLocked = useTimelineStore((s) => s.toggleTrackLocked);
-	const currentTime = usePlaybackStore((s) => s.currentTime);
 	const seek = usePlaybackStore((s) => s.seek);
 	const setDuration = usePlaybackStore((s) => s.setDuration);
 	const pushSnapshot = useHistoryStore((s) => s.pushSnapshot);
@@ -44,7 +43,6 @@ export function Timeline() {
 	useEditorKeyboard();
 
 	const duration = getTimelineDuration(tracks);
-	const playheadPosition = timeToPixel(currentTime, zoom);
 
 	useEffect(() => {
 		setDuration(duration);
@@ -169,7 +167,7 @@ export function Timeline() {
 					</div>
 					<div className="relative">
 						<div className="pointer-events-none absolute inset-y-0 left-28">
-							<Playhead position={playheadPosition} />
+							<Playhead zoom={zoom} />
 						</div>
 						{tracks.map((track) => (
 							<TrackRow
@@ -182,7 +180,6 @@ export function Timeline() {
 								onRemoveTrack={handleRemoveTrack}
 								onToggleMuted={toggleTrackMuted}
 								onToggleLocked={toggleTrackLocked}
-								currentTime={currentTime}
 								dropIndicatorRef={(el) => {
 									if (el) {
 										dropIndicatorMap.set(track.id, el);

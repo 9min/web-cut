@@ -1,7 +1,8 @@
 import { useDroppable } from "@dnd-kit/core";
 import { Lock, Plus, Unlock, Volume2, VolumeX, X } from "lucide-react";
-import { type Ref, useCallback, useMemo, useState } from "react";
+import { memo, type Ref, useCallback, useMemo, useState } from "react";
 import { TRACK_HEIGHT } from "@/constants/timeline";
+import { usePlaybackStore } from "@/stores/usePlaybackStore";
 import { useTimelineStore } from "@/stores/useTimelineStore";
 import type { Clip, Track } from "@/types/timeline";
 import { cn } from "@/utils/cn";
@@ -25,10 +26,9 @@ interface TrackRowProps {
 	onRemoveTrack?: (trackId: string) => void;
 	onToggleMuted?: (trackId: string) => void;
 	onToggleLocked?: (trackId: string) => void;
-	currentTime?: number;
 }
 
-export function TrackRow({
+export const TrackRow = memo(function TrackRow({
 	track,
 	zoom,
 	selectedClipId,
@@ -39,7 +39,6 @@ export function TrackRow({
 	onRemoveTrack,
 	onToggleMuted,
 	onToggleLocked,
-	currentTime = 0,
 }: TrackRowProps) {
 	const [autoOpenClipId, setAutoOpenClipId] = useState<string | null>(null);
 	const updateTextClip = useTimelineStore((s) => s.updateTextClip);
@@ -82,9 +81,10 @@ export function TrackRow({
 
 	const handleAddTextClipClick = useCallback(() => {
 		if (onAddTextClip) {
-			onAddTextClip(track.id, currentTime);
+			const ct = usePlaybackStore.getState().currentTime;
+			onAddTextClip(track.id, ct);
 		}
-	}, [onAddTextClip, track.id, currentTime]);
+	}, [onAddTextClip, track.id]);
 
 	return (
 		<div data-testid="track-row" className="group/row flex border-b border-gray-800">
@@ -228,4 +228,4 @@ export function TrackRow({
 			</div>
 		</div>
 	);
-}
+});
