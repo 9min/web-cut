@@ -17,7 +17,7 @@ interface AudioPanelProps {
 
 export function AudioPanel({ trackId, clipId, volume }: AudioPanelProps) {
 	const updateClipVolume = useTimelineStore((s) => s.updateClipVolume);
-	const { scheduleSnapshot } = useDebouncedSnapshot();
+	const { scheduleSnapshot } = useDebouncedSnapshot("볼륨 변경");
 
 	const handleVolumeChange = useCallback(
 		(value: number) => {
@@ -28,7 +28,7 @@ export function AudioPanel({ trackId, clipId, volume }: AudioPanelProps) {
 	);
 
 	const handleReset = useCallback(() => {
-		useHistoryStore.getState().pushSnapshot();
+		useHistoryStore.getState().pushSnapshot("볼륨 초기화");
 		updateClipVolume(trackId, clipId, AUDIO_VOLUME_DEFAULT);
 	}, [trackId, clipId, updateClipVolume]);
 

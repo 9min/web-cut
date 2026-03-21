@@ -16,13 +16,13 @@ describe("useHistoryStore", () => {
 	});
 
 	it("스냅샷을 저장하면 undo 가능하다", () => {
-		useHistoryStore.getState().pushSnapshot();
+		useHistoryStore.getState().pushSnapshot("테스트");
 		expect(useHistoryStore.getState().canUndo()).toBe(true);
 	});
 
 	it("undo로 이전 상태를 복원한다", () => {
 		// 초기 상태 저장 (기본 트랙 1개)
-		useHistoryStore.getState().pushSnapshot();
+		useHistoryStore.getState().pushSnapshot("테스트");
 
 		// 트랙 추가
 		useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
@@ -35,7 +35,7 @@ describe("useHistoryStore", () => {
 
 	it("redo로 undo한 상태를 다시 적용한다", () => {
 		// 트랙 추가 전 스냅샷 저장
-		useHistoryStore.getState().pushSnapshot();
+		useHistoryStore.getState().pushSnapshot("테스트");
 		useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
 
 		// undo → 기본 트랙 1개로 복원
@@ -48,15 +48,15 @@ describe("useHistoryStore", () => {
 	});
 
 	it("새 변경을 하면 redo 스택이 초기화된다", () => {
-		useHistoryStore.getState().pushSnapshot();
+		useHistoryStore.getState().pushSnapshot("테스트");
 		useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
-		useHistoryStore.getState().pushSnapshot();
+		useHistoryStore.getState().pushSnapshot("테스트");
 
 		useHistoryStore.getState().undo();
 		expect(useHistoryStore.getState().canRedo()).toBe(true);
 
 		// 새 변경
-		useHistoryStore.getState().pushSnapshot();
+		useHistoryStore.getState().pushSnapshot("테스트");
 		expect(useHistoryStore.getState().canRedo()).toBe(false);
 	});
 
@@ -68,9 +68,31 @@ describe("useHistoryStore", () => {
 		expect(() => useHistoryStore.getState().redo()).not.toThrow();
 	});
 
+	it("getUndoLabel/getRedoLabel로 라벨을 조회한다", () => {
+		expect(useHistoryStore.getState().getUndoLabel()).toBeNull();
+		expect(useHistoryStore.getState().getRedoLabel()).toBeNull();
+
+		useHistoryStore.getState().pushSnapshot("트랙 추가");
+		expect(useHistoryStore.getState().getUndoLabel()).toBe("트랙 추가");
+
+		useHistoryStore.getState().pushSnapshot("클립 삭제");
+		expect(useHistoryStore.getState().getUndoLabel()).toBe("클립 삭제");
+
+		useHistoryStore.getState().undo();
+		expect(useHistoryStore.getState().getRedoLabel()).not.toBeNull();
+		expect(useHistoryStore.getState().getUndoLabel()).toBe("트랙 추가");
+	});
+
+	it("MAX_HISTORY 100까지 스냅샷을 저장한다", () => {
+		for (let i = 0; i < 110; i++) {
+			useHistoryStore.getState().pushSnapshot(`스냅샷 ${i}`);
+		}
+		expect(useHistoryStore.getState().past.length).toBeLessThanOrEqual(100);
+	});
+
 	it("reset으로 모든 히스토리를 초기화한다", () => {
-		useHistoryStore.getState().pushSnapshot();
-		useHistoryStore.getState().pushSnapshot();
+		useHistoryStore.getState().pushSnapshot("테스트");
+		useHistoryStore.getState().pushSnapshot("테스트");
 		useHistoryStore.getState().reset();
 
 		expect(useHistoryStore.getState().canUndo()).toBe(false);

@@ -6,7 +6,9 @@ import { Header } from "@/components/layout/Header";
 import { MediaPool } from "@/components/media-pool/MediaPool";
 import { PreviewPanel } from "@/components/preview/PreviewPanel";
 import { Timeline } from "@/components/timeline/Timeline";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { KeyboardShortcutHelp } from "@/components/ui/KeyboardShortcutHelp";
+import { useAutoSave } from "@/hooks/useAutoSave";
 import { useTimelineDragDrop } from "@/hooks/useTimelineDragDrop";
 import { useMediaStore } from "@/stores/useMediaStore";
 import type { DragData } from "@/types/dnd";
@@ -19,6 +21,7 @@ function getTypeIcon(type: string): string {
 }
 
 export function App() {
+	useAutoSave();
 	const { handleDragEnd, handleDragMove, clearIndicator } = useTimelineDragDrop();
 	const [dragInfo, setDragInfo] = useState<{ name: string; type: string } | null>(null);
 	const sensors = useSensors(
@@ -28,44 +31,46 @@ export function App() {
 	);
 
 	return (
-		<DndContext
-			sensors={sensors}
-			onDragStart={({ active }) => {
-				const data = active.data.current as DragData | undefined;
-				if (data?.type === DND_TYPES.MEDIA_ITEM) {
-					const asset = useMediaStore.getState().assets.find((a) => a.id === data.assetId);
-					if (asset) {
-						setDragInfo({ name: asset.name, type: asset.type });
+		<ErrorBoundary>
+			<DndContext
+				sensors={sensors}
+				onDragStart={({ active }) => {
+					const data = active.data.current as DragData | undefined;
+					if (data?.type === DND_TYPES.MEDIA_ITEM) {
+						const asset = useMediaStore.getState().assets.find((a) => a.id === data.assetId);
+						if (asset) {
+							setDragInfo({ name: asset.name, type: asset.type });
+						}
 					}
-				}
-			}}
-			onDragMove={handleDragMove}
-			onDragEnd={(event) => {
-				handleDragEnd(event);
-				clearIndicator();
-				setDragInfo(null);
-			}}
-			onDragCancel={() => {
-				clearIndicator();
-				setDragInfo(null);
-			}}
-		>
-			<EditorLayout
-				header={<Header />}
-				sidebar={<MediaPool />}
-				preview={<PreviewPanel />}
-				timeline={<Timeline />}
-				inspector={<InspectorPanel />}
-			/>
-			<DragOverlay dropAnimation={null}>
-				{dragInfo && (
-					<div className="flex items-center gap-2 rounded bg-gray-800 px-3 py-2 shadow-lg ring-1 ring-blue-500">
-						<span>{getTypeIcon(dragInfo.type)}</span>
-						<span className="max-w-40 truncate text-xs text-white">{dragInfo.name}</span>
-					</div>
-				)}
-			</DragOverlay>
-			<KeyboardShortcutHelp />
-		</DndContext>
+				}}
+				onDragMove={handleDragMove}
+				onDragEnd={(event) => {
+					handleDragEnd(event);
+					clearIndicator();
+					setDragInfo(null);
+				}}
+				onDragCancel={() => {
+					clearIndicator();
+					setDragInfo(null);
+				}}
+			>
+				<EditorLayout
+					header={<Header />}
+					sidebar={<MediaPool />}
+					preview={<PreviewPanel />}
+					timeline={<Timeline />}
+					inspector={<InspectorPanel />}
+				/>
+				<DragOverlay dropAnimation={null}>
+					{dragInfo && (
+						<div className="flex items-center gap-2 rounded bg-gray-800 px-3 py-2 shadow-lg ring-1 ring-blue-500">
+							<span>{getTypeIcon(dragInfo.type)}</span>
+							<span className="max-w-40 truncate text-xs text-white">{dragInfo.name}</span>
+						</div>
+					)}
+				</DragOverlay>
+				<KeyboardShortcutHelp />
+			</DndContext>
+		</ErrorBoundary>
 	);
 }

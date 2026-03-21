@@ -13,7 +13,9 @@ import { findDropIndex, reorderAndCompact } from "@/utils/timelineUtils";
 
 interface TimelineState {
 	tracks: Track[];
-	selectedClipId: string | null;
+	selectedClipIds: Set<string>;
+	/** 하위 호환성 헬퍼: Set의 첫 번째 요소 또는 null */
+	getSelectedClipId: () => string | null;
 	addTrack: (track: Track) => void;
 	removeTrack: (id: string) => void;
 	addClip: (trackId: string, clip: Clip) => void;
@@ -33,7 +35,9 @@ interface TimelineState {
 		newEndTime: number,
 	) => void;
 	removeClipsByAssetId: (assetId: string) => void;
-	selectClip: (clipId: string | null) => void;
+	selectClip: (clipId: string | null, additive?: boolean) => void;
+	deselectAll: () => void;
+	removeSelectedClips: () => void;
 	addTransition: (trackId: string, clipId: string, transition: Transition) => void;
 	removeTransition: (trackId: string, clipId: string) => void;
 	updateTransition: (trackId: string, clipId: string, updates: Partial<Transition>) => void;
@@ -64,6 +68,9 @@ interface TimelineState {
 		toTrackId: string,
 		newStartTime: number,
 	) => void;
+	trimClipByEdge: (trackId: string, clipId: string, edge: "left" | "right", delta: number) => void;
+	rippleDelete: (trackId: string, clipId: string) => void;
+	slipEdit: (trackId: string, clipId: string, delta: number) => void;
 	reset: () => void;
 }
 
@@ -105,11 +112,17 @@ const DEFAULT_TRACK: Track = {
 
 const initialState = {
 	tracks: [DEFAULT_TRACK] as Track[],
-	selectedClipId: null as string | null,
+	selectedClipIds: new Set<string>(),
 };
 
 export const useTimelineStore = create<TimelineState>((set, get) => ({
 	...initialState,
+
+	getSelectedClipId: () => {
+		const ids = get().selectedClipIds;
+		if (ids.size === 0) return null;
+		return ids.values().next().value ?? null;
+	},
 
 	addTrack: (track) => set((state) => ({ tracks: [...state.tracks, track] })),
 
@@ -121,7 +134,7 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
 		})),
 
 	removeClip: (trackId, clipId) => {
-		const { selectedClipId } = get();
+		const { selectedClipIds } = get();
 		const track = get().tracks.find((t) => t.id === trackId);
 		if (!track) return;
 
@@ -129,6 +142,9 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
 		const sorted = [...track.clips].sort((a, b) => a.startTime - b.startTime);
 		const clipIndex = sorted.findIndex((c) => c.id === clipId);
 		const prevClipId = clipIndex > 0 ? sorted[clipIndex - 1]?.id : undefined;
+
+		const newIds = new Set(selectedClipIds);
+		newIds.delete(clipId);
 
 		set((state) => ({
 			tracks: state.tracks.map((t) =>
@@ -141,7 +157,7 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
 						}
 					: t,
 			),
-			selectedClipId: selectedClipId === clipId ? null : selectedClipId,
+			selectedClipIds: newIds,
 		}));
 	},
 
@@ -240,7 +256,7 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
 					? { ...t, clips: [...t.clips.filter((c) => c.id !== clipId), leftClip, rightClip] }
 					: t,
 			),
-			selectedClipId: leftClip.id,
+			selectedClipIds: new Set([leftClip.id]),
 		}));
 	},
 
@@ -258,13 +274,13 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
 	},
 
 	removeClipsByAssetId: (assetId) => {
-		const { selectedClipId } = get();
-		let shouldClearSelection = false;
+		const { selectedClipIds } = get();
+		const newIds = new Set(selectedClipIds);
 
 		const newTracks = get().tracks.map((t) => {
 			const filtered = t.clips.filter((c) => {
 				if (c.assetId === assetId) {
-					if (c.id === selectedClipId) shouldClearSelection = true;
+					newIds.delete(c.id);
 					return false;
 				}
 				return true;
@@ -274,11 +290,42 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
 
 		set({
 			tracks: newTracks,
-			selectedClipId: shouldClearSelection ? null : selectedClipId,
+			selectedClipIds: newIds,
 		});
 	},
 
-	selectClip: (clipId) => set({ selectedClipId: clipId }),
+	selectClip: (clipId, additive) => {
+		if (clipId === null) {
+			set({ selectedClipIds: new Set() });
+			return;
+		}
+		if (additive) {
+			const newIds = new Set(get().selectedClipIds);
+			if (newIds.has(clipId)) {
+				newIds.delete(clipId);
+			} else {
+				newIds.add(clipId);
+			}
+			set({ selectedClipIds: newIds });
+		} else {
+			set({ selectedClipIds: new Set([clipId]) });
+		}
+	},
+
+	deselectAll: () => set({ selectedClipIds: new Set() }),
+
+	removeSelectedClips: () => {
+		const { selectedClipIds, tracks } = get();
+		if (selectedClipIds.size === 0) return;
+
+		const newTracks = tracks.map((t) => ({
+			...t,
+			clips: t.clips.filter((c) => !selectedClipIds.has(c.id)),
+			textClips: t.textClips.filter((tc) => !selectedClipIds.has(tc.id)),
+		}));
+
+		set({ tracks: newTracks, selectedClipIds: new Set() });
+	},
 
 	addTransition: (trackId, clipId, transition) => {
 		const track = get().tracks.find((t) => t.id === trackId);
@@ -511,14 +558,15 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
 	},
 
 	removeTextClip: (trackId, textClipId) => {
-		const { selectedClipId } = get();
+		const newIds = new Set(get().selectedClipIds);
+		newIds.delete(textClipId);
 		set((state) => ({
 			tracks: state.tracks.map((t) =>
 				t.id === trackId
 					? { ...t, textClips: t.textClips.filter((tc) => tc.id !== textClipId) }
 					: t,
 			),
-			selectedClipId: selectedClipId === textClipId ? null : selectedClipId,
+			selectedClipIds: newIds,
 		}));
 	},
 
@@ -554,6 +602,105 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
 				}),
 			}));
 		}
+	},
+
+	trimClipByEdge: (trackId, clipId, edge, delta) => {
+		const track = get().tracks.find((t) => t.id === trackId);
+		const clip = track?.clips.find((c) => c.id === clipId);
+		if (!clip) return;
+
+		const MIN_DURATION = 0.1;
+
+		if (edge === "left") {
+			// 왼쪽 트림: startTime↑, duration↓, inPoint↑
+			const maxDelta = clip.duration - MIN_DURATION;
+			const clampedDelta = Math.min(Math.max(delta, -clip.startTime), maxDelta);
+			const newStartTime = clip.startTime + clampedDelta;
+			const newDuration = clip.duration - clampedDelta;
+			const newInPoint = clip.inPoint + clampedDelta;
+
+			set((state) => ({
+				tracks: state.tracks.map((t) =>
+					t.id === trackId
+						? {
+								...t,
+								clips: t.clips.map((c) =>
+									c.id === clipId
+										? { ...c, startTime: newStartTime, duration: newDuration, inPoint: newInPoint }
+										: c,
+								),
+							}
+						: t,
+				),
+			}));
+		} else {
+			// 오른쪽 트림: duration↑↓, outPoint↑↓
+			const newDuration = Math.max(MIN_DURATION, clip.duration + delta);
+			const newOutPoint = clip.inPoint + newDuration;
+
+			set((state) => ({
+				tracks: state.tracks.map((t) =>
+					t.id === trackId
+						? {
+								...t,
+								clips: t.clips.map((c) =>
+									c.id === clipId ? { ...c, duration: newDuration, outPoint: newOutPoint } : c,
+								),
+							}
+						: t,
+				),
+			}));
+		}
+	},
+
+	rippleDelete: (trackId, clipId) => {
+		const track = get().tracks.find((t) => t.id === trackId);
+		if (!track) return;
+
+		const clip = track.clips.find((c) => c.id === clipId);
+		if (!clip) return;
+
+		const gap = clip.duration;
+		const clipEnd = clip.startTime + clip.duration;
+
+		const newIds = new Set(get().selectedClipIds);
+		newIds.delete(clipId);
+
+		set((state) => ({
+			tracks: state.tracks.map((t) =>
+				t.id === trackId
+					? {
+							...t,
+							clips: t.clips
+								.filter((c) => c.id !== clipId)
+								.map((c) => (c.startTime >= clipEnd ? { ...c, startTime: c.startTime - gap } : c)),
+						}
+					: t,
+			),
+			selectedClipIds: newIds,
+		}));
+	},
+
+	slipEdit: (trackId, clipId, delta) => {
+		const track = get().tracks.find((t) => t.id === trackId);
+		const clip = track?.clips.find((c) => c.id === clipId);
+		if (!clip) return;
+
+		const newInPoint = clip.inPoint + delta;
+		const newOutPoint = clip.outPoint + delta;
+
+		set((state) => ({
+			tracks: state.tracks.map((t) =>
+				t.id === trackId
+					? {
+							...t,
+							clips: t.clips.map((c) =>
+								c.id === clipId ? { ...c, inPoint: newInPoint, outPoint: newOutPoint } : c,
+							),
+						}
+					: t,
+			),
+		}));
 	},
 
 	reset: () => set(initialState),

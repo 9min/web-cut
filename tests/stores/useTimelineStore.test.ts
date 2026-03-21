@@ -14,7 +14,7 @@ describe("useTimelineStore", () => {
 		const state = useTimelineStore.getState();
 		expect(state.tracks).toHaveLength(1);
 		expect(state.tracks[0]?.type).toBe("video");
-		expect(state.selectedClipId).toBeNull();
+		expect(state.selectedClipIds.size).toBe(0);
 	});
 
 	describe("addTrack", () => {
@@ -81,7 +81,7 @@ describe("useTimelineStore", () => {
 			useTimelineStore.getState().selectClip("c1");
 
 			useTimelineStore.getState().removeClip("t1", "c1");
-			expect(useTimelineStore.getState().selectedClipId).toBeNull();
+			expect(useTimelineStore.getState().selectedClipIds.size).toBe(0);
 		});
 	});
 
@@ -114,13 +114,13 @@ describe("useTimelineStore", () => {
 	describe("selectClip", () => {
 		it("클립을 선택한다", () => {
 			useTimelineStore.getState().selectClip("c1");
-			expect(useTimelineStore.getState().selectedClipId).toBe("c1");
+			expect(useTimelineStore.getState().selectedClipIds.has("c1")).toBe(true);
 		});
 
 		it("null로 선택을 해제한다", () => {
 			useTimelineStore.getState().selectClip("c1");
 			useTimelineStore.getState().selectClip(null);
-			expect(useTimelineStore.getState().selectedClipId).toBeNull();
+			expect(useTimelineStore.getState().selectedClipIds.size).toBe(0);
 		});
 	});
 
@@ -208,7 +208,7 @@ describe("useTimelineStore", () => {
 
 			useTimelineStore.getState().removeClipsByAssetId("a1");
 
-			expect(useTimelineStore.getState().selectedClipId).toBeNull();
+			expect(useTimelineStore.getState().selectedClipIds.size).toBe(0);
 		});
 	});
 
@@ -220,7 +220,7 @@ describe("useTimelineStore", () => {
 
 			const state = useTimelineStore.getState();
 			expect(state.tracks).toHaveLength(1); // 기본 트랙 1개
-			expect(state.selectedClipId).toBeNull();
+			expect(state.selectedClipIds.size).toBe(0);
 		});
 	});
 
@@ -722,7 +722,7 @@ describe("useTimelineStore", () => {
 
 			useTimelineStore.getState().removeTextClip(trackId, "tc1");
 
-			expect(useTimelineStore.getState().selectedClipId).toBeNull();
+			expect(useTimelineStore.getState().selectedClipIds.size).toBe(0);
 		});
 	});
 

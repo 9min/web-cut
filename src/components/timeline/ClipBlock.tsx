@@ -5,12 +5,14 @@ import type { Clip } from "@/types/timeline";
 import { clipBlockMap } from "@/utils/clipBlockRefs";
 import { cn } from "@/utils/cn";
 import { timeToPixel } from "@/utils/timelineUtils";
+import { TrimHandle } from "./TrimHandle";
 
 interface ClipBlockProps {
 	clip: Clip;
 	zoom: number;
 	isSelected: boolean;
 	onSelect: (clipId: string) => void;
+	onContextMenu?: (clipId: string, trackId: string, x: number, y: number) => void;
 }
 
 export const ClipBlock = memo(function ClipBlock({
@@ -18,6 +20,7 @@ export const ClipBlock = memo(function ClipBlock({
 	zoom,
 	isSelected,
 	onSelect,
+	onContextMenu: onCtxMenu,
 }: ClipBlockProps) {
 	const left = timeToPixel(clip.startTime, zoom);
 	const width = timeToPixel(clip.duration, zoom);
@@ -45,7 +48,7 @@ export const ClipBlock = memo(function ClipBlock({
 			type="button"
 			data-testid="clip-block"
 			className={cn(
-				"absolute top-1 flex h-10 cursor-pointer items-center overflow-hidden rounded px-2 text-xs text-left",
+				"group absolute top-1 flex h-10 cursor-pointer items-center overflow-hidden rounded px-2 text-xs text-left",
 				isSelected ? "bg-blue-600 ring-2 ring-blue-400" : "bg-gray-600 hover:bg-gray-500",
 				isDragging && "opacity-80 shadow-lg ring-2 ring-blue-500",
 			)}
@@ -57,10 +60,16 @@ export const ClipBlock = memo(function ClipBlock({
 				zIndex: isDragging ? 50 : undefined,
 			}}
 			onClick={() => onSelect(clip.id)}
+			onContextMenu={(e) => {
+				e.preventDefault();
+				onCtxMenu?.(clip.id, clip.trackId, e.clientX, e.clientY);
+			}}
 			{...listeners}
 			{...attributes}
 		>
+			<TrimHandle trackId={clip.trackId} clipId={clip.id} edge="left" />
 			<span className="truncate text-white">{clip.name}</span>
+			<TrimHandle trackId={clip.trackId} clipId={clip.id} edge="right" />
 		</button>
 	);
 });

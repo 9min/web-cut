@@ -19,7 +19,7 @@ describe("프로젝트 직렬화/역직렬화", () => {
 			useTimelineStore.getState().addTrack(track);
 
 			const data = serializeProject();
-			expect(data.version).toBe("1.0");
+			expect(data.version).toBe("2.0");
 			expect(data.project.name).toBe("테스트 프로젝트");
 			expect(data.timeline.tracks).toHaveLength(2); // 기본 트랙 + 추가 트랙
 			expect(data.savedAt).toBeGreaterThan(0);

@@ -71,7 +71,7 @@ describe("useEditorKeyboard", () => {
 		renderHook(() => useEditorKeyboard());
 
 		fireKey("Escape");
-		expect(useTimelineStore.getState().selectedClipId).toBeNull();
+		expect(useTimelineStore.getState().selectedClipIds.size).toBe(0);
 	});
 
 	it("ArrowLeft로 1프레임 뒤로 이동한다", () => {

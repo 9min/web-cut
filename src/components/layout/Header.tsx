@@ -28,9 +28,9 @@ export function Header() {
 		return () => document.removeEventListener("mousedown", handleClickOutside);
 	}, [showExport]);
 
-	const handleSave = useCallback(() => {
+	const handleSave = useCallback(async () => {
 		const data = serializeProject();
-		downloadProjectFile(data);
+		await downloadProjectFile(data);
 	}, []);
 
 	const handleLoad = useCallback(() => {

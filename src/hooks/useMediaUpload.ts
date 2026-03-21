@@ -6,6 +6,8 @@ import { generateId } from "@/utils/generateId";
 import { sanitizeFileName } from "@/utils/sanitizeFileName";
 import { validateMediaFile } from "@/utils/validateMediaFile";
 
+const CONCURRENCY = 3;
+
 function getMediaType(mimeType: string): MediaType {
 	if (mimeType.startsWith("video/")) return "video";
 	if (mimeType.startsWith("audio/")) return "audio";
@@ -23,6 +25,26 @@ interface UseMediaUploadReturn {
 	clearErrors: () => void;
 }
 
+/** 동시성을 제한하여 비동기 작업을 처리한다 */
+async function processQueue<T>(
+	items: T[],
+	concurrency: number,
+	fn: (item: T) => Promise<void>,
+): Promise<void> {
+	let index = 0;
+
+	async function next(): Promise<void> {
+		while (index < items.length) {
+			const current = index++;
+			const item = items[current];
+			if (item) await fn(item);
+		}
+	}
+
+	const workers = Array.from({ length: Math.min(concurrency, items.length) }, () => next());
+	await Promise.all(workers);
+}
+
 export function useMediaUpload(): UseMediaUploadReturn {
 	const [errors, setErrors] = useState<UploadError[]>([]);
 	const addAsset = useMediaStore((s) => s.addAsset);
@@ -31,6 +53,9 @@ export function useMediaUpload(): UseMediaUploadReturn {
 	const uploadFiles = useCallback(
 		async (files: File[]) => {
 			const newErrors: UploadError[] = [];
+
+			// 검증 통과한 파일과 실패한 파일 분리
+			const validFiles: { file: File; id: string }[] = [];
 
 			for (const file of files) {
 				const validation = validateMediaFile(file);
@@ -61,14 +86,20 @@ export function useMediaUpload(): UseMediaUploadReturn {
 					addedAt: Date.now(),
 				});
 
+				validFiles.push({ file, id });
+			}
+
+			// 메타데이터 추출을 CONCURRENCY개씩 병렬 처리
+			await processQueue(validFiles, CONCURRENCY, async ({ file, id }) => {
 				try {
+					const type = getMediaType(file.type);
 					const metadata = await extractMetadata(file, type);
 					updateAsset(id, { metadata, status: "ready" });
 				} catch (error) {
 					const errorMessage = error instanceof Error ? error.message : "알 수 없는 오류";
 					updateAsset(id, { status: "error", errorMessage });
 				}
-			}
+			});
 
 			setErrors(newErrors);
 		},

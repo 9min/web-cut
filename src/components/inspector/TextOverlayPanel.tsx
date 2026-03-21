@@ -33,7 +33,7 @@ export function TextOverlayPanel({
 	duration,
 }: TextOverlayPanelProps) {
 	const { updateTextClipOverlay, updateTextClip, removeTextClip } = useTimelineStore();
-	const { scheduleSnapshot } = useDebouncedSnapshot();
+	const { scheduleSnapshot } = useDebouncedSnapshot("텍스트 편집");
 
 	const handleContentChange = useCallback(
 		(value: string) => {
@@ -45,7 +45,7 @@ export function TextOverlayPanel({
 	);
 
 	const handleRemove = useCallback(() => {
-		useHistoryStore.getState().pushSnapshot();
+		useHistoryStore.getState().pushSnapshot("텍스트 삭제");
 		removeTextClip(trackId, textClipId);
 	}, [trackId, textClipId, removeTextClip]);
 

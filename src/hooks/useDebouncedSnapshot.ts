@@ -3,7 +3,7 @@ import { useHistoryStore } from "@/stores/useHistoryStore";
 
 const DEBOUNCE_MS = 300;
 
-export function useDebouncedSnapshot() {
+export function useDebouncedSnapshot(label = "속성 변경") {
 	const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const batchActiveRef = useRef(false);
 
@@ -20,7 +20,7 @@ export function useDebouncedSnapshot() {
 	const scheduleSnapshot = useCallback(() => {
 		if (!batchActiveRef.current) {
 			batchActiveRef.current = true;
-			useHistoryStore.getState().pushSnapshot();
+			useHistoryStore.getState().pushSnapshot(label);
 		}
 
 		if (timerRef.current) {

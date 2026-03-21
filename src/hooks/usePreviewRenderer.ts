@@ -352,10 +352,20 @@ export function usePreviewRenderer(
 		};
 
 		const syncVideo = (video: HTMLVideoElement, targetTime: number) => {
-			if (Math.abs(video.currentTime - targetTime) > 0.15) {
+			const { isPlaying: playing, speed } = usePlaybackStore.getState();
+
+			// 배속에 비례하여 seek 임계값을 확대 (빠를수록 드리프트 허용 범위 증가)
+			const seekThreshold = 0.15 * Math.max(1, speed);
+
+			// 비디오 playbackRate를 스토어 배속과 동기화
+			if (video.playbackRate !== speed) {
+				video.playbackRate = speed;
+			}
+
+			if (Math.abs(video.currentTime - targetTime) > seekThreshold) {
 				video.currentTime = targetTime;
 			}
-			const playing = usePlaybackStore.getState().isPlaying;
+
 			if (playing && video.paused) {
 				video.play().catch(() => {});
 			} else if (!playing && !video.paused) {
@@ -364,10 +374,18 @@ export function usePreviewRenderer(
 		};
 
 		const syncAudio = (audio: HTMLAudioElement, targetTime: number) => {
-			if (Math.abs(audio.currentTime - targetTime) > 0.15) {
+			const { isPlaying: playing, speed } = usePlaybackStore.getState();
+
+			const seekThreshold = 0.15 * Math.max(1, speed);
+
+			if (audio.playbackRate !== speed) {
+				audio.playbackRate = speed;
+			}
+
+			if (Math.abs(audio.currentTime - targetTime) > seekThreshold) {
 				audio.currentTime = targetTime;
 			}
-			const playing = usePlaybackStore.getState().isPlaying;
+
 			if (playing && audio.paused) {
 				audio.play().catch(() => {});
 			} else if (!playing && !audio.paused) {

@@ -18,7 +18,8 @@ import { TrackRow } from "./TrackRow";
 
 export function Timeline() {
 	const tracks = useTimelineStore((s) => s.tracks);
-	const selectedClipId = useTimelineStore((s) => s.selectedClipId);
+	const selectedClipIds = useTimelineStore((s) => s.selectedClipIds);
+	const selectedClipId = useTimelineStore((s) => s.getSelectedClipId());
 	const addTrack = useTimelineStore((s) => s.addTrack);
 	const selectClip = useTimelineStore((s) => s.selectClip);
 	const splitClip = useTimelineStore((s) => s.splitClip);
@@ -50,7 +51,7 @@ export function Timeline() {
 
 	const handleRemoveTrack = useCallback(
 		(trackId: string) => {
-			pushSnapshot();
+			pushSnapshot("트랙 삭제");
 			removeTrack(trackId);
 		},
 		[removeTrack, pushSnapshot],
@@ -64,7 +65,7 @@ export function Timeline() {
 		}, 0);
 		const name = `타임라인 ${maxNum + 1}`;
 
-		pushSnapshot();
+		pushSnapshot("트랙 추가");
 		addTrack({
 			id: generateId(),
 			name,
@@ -78,19 +79,19 @@ export function Timeline() {
 	}, [addTrack, pushSnapshot]);
 
 	const handleAddTextTrack = useCallback(() => {
-		pushSnapshot();
+		pushSnapshot("텍스트 트랙 추가");
 		addTextTrack();
 	}, [addTextTrack, pushSnapshot]);
 
 	const handleAddAudioTrack = useCallback(() => {
-		pushSnapshot();
+		pushSnapshot("오디오 트랙 추가");
 		addAudioTrack();
 	}, [addAudioTrack, pushSnapshot]);
 
 	const handleAddTextClip = useCallback(
 		(trackId: string, startTime: number) => {
 			const track = useTimelineStore.getState().tracks.find((t) => t.id === trackId);
-			pushSnapshot();
+			pushSnapshot("텍스트 클립 추가");
 			const textClip = createDefaultTextClip(trackId, startTime, track?.textClips);
 			addTextClip(trackId, textClip);
 			selectClip(textClip.id);
@@ -100,25 +101,27 @@ export function Timeline() {
 
 	const handleSplit = useCallback(() => {
 		const time = usePlaybackStore.getState().currentTime;
-		const { selectedClipId: clipId, tracks: allTracks } = useTimelineStore.getState();
+		const { tracks: allTracks } = useTimelineStore.getState();
+		const clipId = useTimelineStore.getState().getSelectedClipId();
 		if (!clipId) return;
 
 		// text 트랙의 TextClip은 분할하지 않음
 		const track = allTracks.find((t) => t.clips.some((c) => c.id === clipId));
 		if (!track || track.locked) return;
-		pushSnapshot();
+		pushSnapshot("클립 분할");
 		splitClip(track.id, clipId, time);
 	}, [splitClip, pushSnapshot]);
 
 	const handleDelete = useCallback(() => {
-		const { selectedClipId: clipId, tracks: allTracks } = useTimelineStore.getState();
+		const { tracks: allTracks } = useTimelineStore.getState();
+		const clipId = useTimelineStore.getState().getSelectedClipId();
 		if (!clipId) return;
 
 		// 먼저 일반 클립에서 찾기
 		const track = allTracks.find((t) => t.clips.some((c) => c.id === clipId));
 		if (track) {
 			if (track.locked) return;
-			pushSnapshot();
+			pushSnapshot("클립 삭제");
 			removeClip(track.id, clipId);
 			return;
 		}
@@ -127,7 +130,7 @@ export function Timeline() {
 		const textTrack = allTracks.find((t) => t.textClips.some((tc) => tc.id === clipId));
 		if (textTrack) {
 			if (textTrack.locked) return;
-			pushSnapshot();
+			pushSnapshot("텍스트 클립 삭제");
 			removeTextClip(textTrack.id, clipId);
 		}
 	}, [removeClip, removeTextClip, pushSnapshot]);
@@ -174,7 +177,7 @@ export function Timeline() {
 								key={track.id}
 								track={track}
 								zoom={zoom}
-								selectedClipId={selectedClipId}
+								selectedClipIds={selectedClipIds}
 								onSelectClip={selectClip}
 								onAddTextClip={handleAddTextClip}
 								onRemoveTrack={handleRemoveTrack}

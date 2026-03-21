@@ -16,6 +16,10 @@ export function usePlayback(): void {
 			const {
 				currentTime,
 				duration,
+				speed,
+				loopEnabled,
+				loopIn,
+				loopOut,
 				seek,
 				pause,
 				isPlaying: playing,
@@ -29,11 +33,25 @@ export function usePlayback(): void {
 				return;
 			}
 
-			const delta = (timestamp - lastTimeRef.current) / 1000;
+			const delta = ((timestamp - lastTimeRef.current) / 1000) * speed;
 			lastTimeRef.current = timestamp;
 			const newTime = currentTime + delta;
 
+			// 루프 처리
+			if (loopEnabled && loopOut > loopIn) {
+				if (newTime >= loopOut) {
+					seek(loopIn);
+					rafRef.current = requestAnimationFrame(tick);
+					return;
+				}
+			}
+
 			if (duration > 0 && newTime >= duration) {
+				if (loopEnabled) {
+					seek(loopIn);
+					rafRef.current = requestAnimationFrame(tick);
+					return;
+				}
 				seek(duration);
 				pause();
 				return;

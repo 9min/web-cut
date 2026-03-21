@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { DEFAULT_ZOOM } from "@/constants/timeline";
+import { useClipboardStore } from "@/stores/useClipboardStore";
 import { useHistoryStore } from "@/stores/useHistoryStore";
 import { usePlaybackStore } from "@/stores/usePlaybackStore";
 import { useProjectStore } from "@/stores/useProjectStore";
@@ -14,13 +15,14 @@ function handlePlaybackToggle(e: KeyboardEvent): void {
 
 function handleDeleteClip(e: KeyboardEvent): void {
 	e.preventDefault();
-	const { selectedClipId, tracks, removeClip, removeTextClip } = useTimelineStore.getState();
+	const selectedClipId = useTimelineStore.getState().getSelectedClipId();
+	const { tracks, removeClip, removeTextClip } = useTimelineStore.getState();
 	if (!selectedClipId) return;
 
 	const track = tracks.find((t) => t.clips.some((c) => c.id === selectedClipId));
 	if (track) {
 		if (track.locked) return;
-		useHistoryStore.getState().pushSnapshot();
+		useHistoryStore.getState().pushSnapshot("클립 삭제");
 		removeClip(track.id, selectedClipId);
 		return;
 	}
@@ -28,15 +30,53 @@ function handleDeleteClip(e: KeyboardEvent): void {
 	const textTrack = tracks.find((t) => t.textClips.some((tc) => tc.id === selectedClipId));
 	if (textTrack) {
 		if (textTrack.locked) return;
-		useHistoryStore.getState().pushSnapshot();
+		useHistoryStore.getState().pushSnapshot("클립 삭제");
 		removeTextClip(textTrack.id, selectedClipId);
+	}
+}
+
+function handleCopy(e: KeyboardEvent): void {
+	if (!e.ctrlKey && !e.metaKey) return;
+	e.preventDefault();
+	const selectedClipId = useTimelineStore.getState().getSelectedClipId();
+	const { tracks } = useTimelineStore.getState();
+	if (!selectedClipId) return;
+
+	for (const track of tracks) {
+		const clip = track.clips.find((c) => c.id === selectedClipId);
+		if (clip) {
+			useClipboardStore.getState().copy([clip]);
+			return;
+		}
+	}
+}
+
+function handlePaste(e: KeyboardEvent): void {
+	if (!e.ctrlKey && !e.metaKey) return;
+	e.preventDefault();
+	const clipboard = useClipboardStore.getState();
+	if (!clipboard.hasItems()) return;
+
+	const currentTime = usePlaybackStore.getState().currentTime;
+	const pasted = clipboard.paste(currentTime);
+	if (pasted.length === 0) return;
+
+	const { tracks, addClip } = useTimelineStore.getState();
+	// 첫 번째 비디오 트랙에 붙여넣기
+	const targetTrack = tracks.find((t) => t.type === "video" || t.type === "audio");
+	if (!targetTrack) return;
+
+	useHistoryStore.getState().pushSnapshot("클립 붙여넣기");
+	for (const clip of pasted) {
+		addClip(targetTrack.id, { ...clip, trackId: targetTrack.id });
 	}
 }
 
 function handleSplitClip(e: KeyboardEvent): void {
 	if (!e.ctrlKey && !e.metaKey) return;
 	e.preventDefault();
-	const { selectedClipId, tracks, splitClip } = useTimelineStore.getState();
+	const selectedClipId = useTimelineStore.getState().getSelectedClipId();
+	const { tracks, splitClip } = useTimelineStore.getState();
 	if (!selectedClipId) return;
 
 	const track = tracks.find((t) => t.clips.some((c) => c.id === selectedClipId));
@@ -44,7 +84,7 @@ function handleSplitClip(e: KeyboardEvent): void {
 	if (track.locked) return;
 
 	const currentTime = usePlaybackStore.getState().currentTime;
-	useHistoryStore.getState().pushSnapshot();
+	useHistoryStore.getState().pushSnapshot("클립 분할");
 	splitClip(track.id, selectedClipId, currentTime);
 }
 
@@ -112,6 +152,10 @@ export function useEditorKeyboard(): void {
 				case "Delete":
 				case "Backspace":
 					return handleDeleteClip(e);
+				case "KeyC":
+					return handleCopy(e);
+				case "KeyV":
+					return handlePaste(e);
 				case "KeyS":
 					return handleSplitClip(e);
 				case "KeyZ":

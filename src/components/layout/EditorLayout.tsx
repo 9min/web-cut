@@ -79,6 +79,7 @@ export function EditorLayout({ header, sidebar, preview, timeline, inspector }: 
 					className="fixed top-12 left-2 z-50 rounded bg-gray-800 p-2 text-gray-300 md:hidden"
 					onClick={handleToggleSidebar}
 					aria-label={sidebarCollapsed ? "사이드바 열기" : "사이드바 닫기"}
+					title={sidebarCollapsed ? "사이드바 열기" : "사이드바 닫기"}
 					data-testid="sidebar-toggle"
 				>
 					{/* biome-ignore lint/a11y/noSvgWithoutTitle: 버튼의 aria-label로 대체 */}
