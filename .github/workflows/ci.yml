@@ -10,36 +10,45 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: "npm"
-      - run: npm ci
-      - run: npx biome check .
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm biome check .
 
   type-check:
     name: 타입 검사
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: "npm"
-      - run: npm ci
-      - run: npx tsc -b --noEmit
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm tsc -b --noEmit
 
   test:
     name: 테스트
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: "npm"
-      - run: npm ci
-      - run: npx vitest run
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm vitest run
 
   build:
     name: 빌드
@@ -47,9 +56,12 @@ jobs:
     needs: [lint, type-check, test]
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: "npm"
-      - run: npm ci
-      - run: npm run build
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build

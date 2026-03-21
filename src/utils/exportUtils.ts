@@ -188,7 +188,8 @@ function buildXfadeArgs(
 
 			lastVideoLabel = vOutLabel;
 			lastAudioLabel = aOutLabel;
-			cumulativeDuration = offset + (clips[i] ? clips[i].outPoint - clips[i].inPoint : 0);
+			const xClip = clips[i];
+			cumulativeDuration = offset + (xClip ? xClip.outPoint - xClip.inPoint : 0);
 		} else {
 			// 트랜지션 없는 클립 간: concat 사용
 			const vOutLabel = i < clips.length - 1 ? `[vcat${i}]` : "[outv]";
@@ -199,7 +200,8 @@ function buildXfadeArgs(
 
 			lastVideoLabel = vOutLabel;
 			lastAudioLabel = aOutLabel;
-			cumulativeDuration += clips[i] ? clips[i].outPoint - clips[i].inPoint : 0;
+			const cClip = clips[i];
+			cumulativeDuration += cClip ? cClip.outPoint - cClip.inPoint : 0;
 		}
 	}
 
