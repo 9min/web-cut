@@ -10,12 +10,14 @@ import {
 	VideoSource,
 } from "pixi.js";
 import { useEffect, useRef } from "react";
+import { TRANSFORM_DEFAULTS } from "@/constants/transform";
 import { useMediaStore } from "@/stores/useMediaStore";
 import { usePlaybackStore } from "@/stores/usePlaybackStore";
 import { useProjectStore } from "@/stores/useProjectStore";
 import { useTimelineStore } from "@/stores/useTimelineStore";
 import { applyClipFilter, clearClipFilter } from "@/utils/filterRenderer";
 import {
+	getVisibleAudioClipsAtTime,
 	getVisibleClipsAtTime,
 	getVisibleTextClipsAtTime,
 	type VisibleClip,
@@ -43,10 +45,12 @@ export function usePreviewRenderer(
 	ready: boolean,
 ): void {
 	const entriesRef = useRef<Map<string, SpriteEntry>>(new Map());
+	const audioEntriesRef = useRef<Map<string, HTMLAudioElement>>(new Map());
 	const textEntriesRef = useRef<Map<string, Text>>(new Map());
 	const dragCtxRef = useRef<Map<string, DragContext>>(new Map());
 	const loadingRef = useRef<Set<string>>(new Set());
 	const stageContainerRef = useRef<Container | null>(null);
+	const textContainerRef = useRef<Container | null>(null);
 	const bgRef = useRef<Graphics | null>(null);
 
 	useEffect(() => {
@@ -59,6 +63,11 @@ export function usePreviewRenderer(
 		stageContainerRef.current = container;
 		appRef.current.stage.addChild(container);
 
+		const textContainer = new Container();
+		textContainer.eventMode = "static";
+		textContainerRef.current = textContainer;
+		appRef.current.stage.addChild(textContainer);
+
 		return () => {
 			for (const entry of entriesRef.current.values()) {
 				entry.sprite.destroy(true);
@@ -68,10 +77,19 @@ export function usePreviewRenderer(
 				}
 			}
 			entriesRef.current.clear();
+			for (const audio of audioEntriesRef.current.values()) {
+				audio.pause();
+				audio.src = "";
+			}
+			audioEntriesRef.current.clear();
 			destroyAllTextOverlays(textEntriesRef);
 			dragCtxRef.current.clear();
 			loadingRef.current.clear();
 
+			if (textContainerRef.current) {
+				textContainerRef.current.destroy({ children: true });
+				textContainerRef.current = null;
+			}
 			if (stageContainerRef.current) {
 				stageContainerRef.current.destroy({ children: true });
 				stageContainerRef.current = null;
@@ -102,6 +120,14 @@ export function usePreviewRenderer(
 			container.y = (app.screen.height - ph * scale) / 2;
 			container.scale.set(scale);
 
+			// 텍스트 컨테이너도 동일한 위치/스케일 적용
+			const textContainer = textContainerRef.current;
+			if (textContainer) {
+				textContainer.x = container.x;
+				textContainer.y = container.y;
+				textContainer.scale.set(scale);
+			}
+
 			if (!bgRef.current) {
 				bgRef.current = new Graphics();
 				container.addChild(bgRef.current);
@@ -122,6 +148,29 @@ export function usePreviewRenderer(
 
 				entry.sprite.visible = true;
 				fitSprite(entry.sprite, pw, ph);
+
+				// 트랜스폼 적용
+				if (vc.clip.transform) {
+					const t = vc.clip.transform;
+					const def = TRANSFORM_DEFAULTS;
+					// 위치 오프셋 (50이 중앙)
+					entry.sprite.x += ((t.x - def.x) / 100) * pw;
+					entry.sprite.y += ((t.y - def.y) / 100) * ph;
+					// 스케일
+					entry.sprite.width *= t.scaleX;
+					entry.sprite.height *= t.scaleY;
+					// 회전
+					if (t.rotation !== 0) {
+						entry.sprite.anchor.set(0.5);
+						entry.sprite.x += entry.sprite.width / (2 * t.scaleX);
+						entry.sprite.y += entry.sprite.height / (2 * t.scaleY);
+						entry.sprite.rotation = (t.rotation * Math.PI) / 180;
+					}
+				} else {
+					entry.sprite.anchor.set(0);
+					entry.sprite.rotation = 0;
+				}
+
 				clearTransitionEffects(entry.sprite);
 
 				// 필터 적용
@@ -136,15 +185,16 @@ export function usePreviewRenderer(
 				}
 			}
 
-			// 독립 텍스트 클립 렌더링
+			// 독립 텍스트 클립 렌더링 (텍스트 전용 컨테이너에 렌더링하여 항상 영상 위에 표시)
 			const visibleTextClips = getVisibleTextClipsAtTime(tracks, currentTime);
 			const activeTextIds = new Set<string>();
+			const tc = textContainerRef.current ?? container;
 
 			for (const vtc of visibleTextClips) {
 				activeTextIds.add(vtc.textClip.id);
 				if (vtc.textClip.overlay.content) {
 					applyTextOverlay(
-						container,
+						tc,
 						textEntriesRef,
 						vtc.textClip.id,
 						vtc.textClip.overlay,
@@ -152,16 +202,67 @@ export function usePreviewRenderer(
 						ph,
 						vtc.trackId,
 						dragCtxRef,
+						app.stage,
 					);
 				} else {
-					clearTextOverlay(container, textEntriesRef, vtc.textClip.id);
+					clearTextOverlay(tc, textEntriesRef, vtc.textClip.id);
 				}
 			}
 
 			// 비활성 텍스트 클립 숨김
 			for (const [id] of textEntriesRef.current) {
 				if (!activeTextIds.has(id)) {
-					clearTextOverlay(container, textEntriesRef, id);
+					clearTextOverlay(tc, textEntriesRef, id);
+				}
+			}
+
+			// 오디오 클립 동기화
+			const visibleAudio = getVisibleAudioClipsAtTime(tracks, currentTime);
+			const activeAudioIds = new Set<string>();
+
+			for (const va of visibleAudio) {
+				activeAudioIds.add(va.clip.id);
+				const audioKey = va.clip.id;
+
+				if (!audioEntriesRef.current.has(audioKey) && !loadingRef.current.has(audioKey)) {
+					loadingRef.current.add(audioKey);
+					const asset = useMediaStore.getState().assets.find((a) => a.id === va.clip.assetId);
+					if (asset) {
+						const audio = document.createElement("audio");
+						audio.src = asset.objectUrl;
+						audio.preload = "auto";
+						audio.addEventListener(
+							"loadeddata",
+							() => {
+								audioEntriesRef.current.set(audioKey, audio);
+								loadingRef.current.delete(audioKey);
+							},
+							{ once: true },
+						);
+						audio.addEventListener(
+							"error",
+							() => {
+								loadingRef.current.delete(audioKey);
+							},
+							{ once: true },
+						);
+						audio.load();
+					} else {
+						loadingRef.current.delete(audioKey);
+					}
+				}
+
+				const audio = audioEntriesRef.current.get(audioKey);
+				if (audio) {
+					audio.volume = va.clip.volume ?? 1.0;
+					syncAudio(audio, va.localTime);
+				}
+			}
+
+			// 비활성 오디오 멈춤
+			for (const [id, audio] of audioEntriesRef.current) {
+				if (!activeAudioIds.has(id) && !audio.paused) {
+					audio.pause();
 				}
 			}
 
@@ -258,6 +359,18 @@ export function usePreviewRenderer(
 				video.play().catch(() => {});
 			} else if (!playing && !video.paused) {
 				video.pause();
+			}
+		};
+
+		const syncAudio = (audio: HTMLAudioElement, targetTime: number) => {
+			if (Math.abs(audio.currentTime - targetTime) > 0.15) {
+				audio.currentTime = targetTime;
+			}
+			const playing = usePlaybackStore.getState().isPlaying;
+			if (playing && audio.paused) {
+				audio.play().catch(() => {});
+			} else if (!playing && !audio.paused) {
+				audio.pause();
 			}
 		};
 

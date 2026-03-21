@@ -4,6 +4,14 @@ import type { Transition } from "./transition";
 
 export type TrackType = "video" | "audio" | "text";
 
+export interface ClipTransform {
+	x: number;
+	y: number;
+	scaleX: number;
+	scaleY: number;
+	rotation: number;
+}
+
 export interface Clip {
 	id: string;
 	trackId: string;
@@ -15,6 +23,8 @@ export interface Clip {
 	outPoint: number;
 	outTransition?: Transition;
 	filter?: ClipFilter;
+	volume?: number;
+	transform?: ClipTransform;
 }
 
 export interface Track {

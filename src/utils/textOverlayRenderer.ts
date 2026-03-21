@@ -20,7 +20,9 @@ export function applyTextOverlay(
 	ph: number,
 	trackId: string,
 	dragCtxRef: React.RefObject<Map<string, DragContext>>,
+	eventTarget?: Container,
 ): void {
+	const dragTarget = eventTarget ?? container;
 	let textObj = textRef.current.get(textClipId);
 
 	if (!textObj) {
@@ -58,14 +60,14 @@ export function applyTextOverlay(
 
 			const onPointerUp = () => {
 				textObjRef.cursor = "grab";
-				container.off("pointermove", onPointerMove);
-				container.off("pointerup", onPointerUp);
-				container.off("pointerupoutside", onPointerUp);
+				dragTarget.off("pointermove", onPointerMove);
+				dragTarget.off("pointerup", onPointerUp);
+				dragTarget.off("pointerupoutside", onPointerUp);
 			};
 
-			container.on("pointermove", onPointerMove);
-			container.on("pointerup", onPointerUp);
-			container.on("pointerupoutside", onPointerUp);
+			dragTarget.on("pointermove", onPointerMove);
+			dragTarget.on("pointerup", onPointerUp);
+			dragTarget.on("pointerupoutside", onPointerUp);
 		};
 
 		textObj.on("pointerdown", onPointerDown);

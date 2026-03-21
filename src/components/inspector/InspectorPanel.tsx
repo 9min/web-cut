@@ -1,7 +1,11 @@
+import { AUDIO_VOLUME_DEFAULT } from "@/constants/audio";
 import { DEFAULT_CLIP_FILTER } from "@/constants/filter";
+import { TRANSFORM_DEFAULTS } from "@/constants/transform";
 import { useTimelineStore } from "@/stores/useTimelineStore";
+import { AudioPanel } from "./AudioPanel";
 import { FilterPanel } from "./FilterPanel";
 import { TextOverlayPanel } from "./TextOverlayPanel";
+import { TransformPanel } from "./TransformPanel";
 
 export function InspectorPanel() {
 	const { tracks, selectedClipId } = useTimelineStore();
@@ -20,6 +24,21 @@ export function InspectorPanel() {
 	for (const track of tracks) {
 		const clip = track.clips.find((c) => c.id === selectedClipId);
 		if (clip) {
+			// 오디오 트랙의 클립
+			if (track.type === "audio") {
+				return (
+					<div className="h-full overflow-y-auto p-3">
+						<div className="mb-3 truncate text-sm font-medium text-gray-200">{clip.name}</div>
+						<AudioPanel
+							trackId={track.id}
+							clipId={clip.id}
+							volume={clip.volume ?? AUDIO_VOLUME_DEFAULT}
+						/>
+					</div>
+				);
+			}
+
+			// 비디오 트랙의 클립
 			return (
 				<div className="h-full overflow-y-auto p-3">
 					<div className="mb-3 truncate text-sm font-medium text-gray-200">{clip.name}</div>
@@ -28,6 +47,13 @@ export function InspectorPanel() {
 						clipId={clip.id}
 						filter={clip.filter ?? DEFAULT_CLIP_FILTER}
 					/>
+					<div className="mt-4">
+						<TransformPanel
+							trackId={track.id}
+							clipId={clip.id}
+							transform={clip.transform ?? TRANSFORM_DEFAULTS}
+						/>
+					</div>
 				</div>
 			);
 		}

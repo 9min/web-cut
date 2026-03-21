@@ -1,5 +1,5 @@
 import { TRANSITION_TO_FFMPEG_MAP } from "@/constants/transition";
-import type { Clip, Track } from "@/types/timeline";
+import type { Clip, ClipTransform, Track } from "@/types/timeline";
 import { buildEqFilterString } from "@/utils/filterUtils";
 import { buildDrawtextFilter } from "@/utils/textOverlayExport";
 
@@ -10,6 +10,50 @@ export function getSortedVideoClips(tracks: Track[]): Clip[] {
 		clips.push(...track.clips);
 	}
 	return clips.sort((a, b) => a.startTime - b.startTime);
+}
+
+export function getSortedAudioClips(tracks: Track[]): Clip[] {
+	const clips: Clip[] = [];
+	for (const track of tracks) {
+		if (track.type !== "audio") continue;
+		clips.push(...track.clips);
+	}
+	return clips.sort((a, b) => a.startTime - b.startTime);
+}
+
+function buildTransformFilter(
+	transform: ClipTransform,
+	width: number,
+	height: number,
+): string | null {
+	const isDefault =
+		transform.x === 50 &&
+		transform.y === 50 &&
+		transform.scaleX === 1 &&
+		transform.scaleY === 1 &&
+		transform.rotation === 0;
+	if (isDefault) return null;
+
+	const parts: string[] = [];
+
+	if (transform.rotation !== 0) {
+		const radians = (transform.rotation * Math.PI) / 180;
+		parts.push(`rotate=${radians.toFixed(4)}`);
+	}
+
+	if (transform.scaleX !== 1 || transform.scaleY !== 1) {
+		const sw = Math.round(width * transform.scaleX);
+		const sh = Math.round(height * transform.scaleY);
+		parts.push(`scale=${sw}:${sh}`);
+	}
+
+	if (transform.x !== 50 || transform.y !== 50) {
+		const ox = Math.round(((transform.x - 50) / 100) * width);
+		const oy = Math.round(((transform.y - 50) / 100) * height);
+		parts.push(`pad=${width}:${height}:${-ox}:${-oy}`);
+	}
+
+	return parts.length > 0 ? parts.join(",") : null;
 }
 
 /** 클립 중 하나라도 outTransition이 있는지 확인 */
@@ -63,7 +107,11 @@ function buildSingleClipArgs(
 
 	const scaleFilter = `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2`;
 	const eqFilter = clip.filter ? buildEqFilterString(clip.filter) : null;
+	const transformFilter = clip.transform
+		? buildTransformFilter(clip.transform, width, height)
+		: null;
 	let vf = eqFilter ? `${scaleFilter},${eqFilter}` : scaleFilter;
+	if (transformFilter) vf = `${vf},${transformFilter}`;
 
 	// 독립 텍스트 클립 필터 추가
 	if (tracks) {
@@ -129,9 +177,13 @@ function buildConcatArgs(
 		const trimEnd = clip.outPoint;
 		const eqFilter = clip.filter ? buildEqFilterString(clip.filter) : null;
 		const eqPart = eqFilter ? `,${eqFilter}` : "";
+		const transformFilter = clip.transform
+			? buildTransformFilter(clip.transform, width, height)
+			: null;
+		const transformPart = transformFilter ? `,${transformFilter}` : "";
 
 		filterParts.push(
-			`[${idx}:v]trim=start=${trimStart}:end=${trimEnd},setpts=PTS-STARTPTS,scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2${eqPart}[v${i}]`,
+			`[${idx}:v]trim=start=${trimStart}:end=${trimEnd},setpts=PTS-STARTPTS,scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2${eqPart}${transformPart}[v${i}]`,
 		);
 		filterParts.push(
 			`[${idx}:a]atrim=start=${trimStart}:end=${trimEnd},asetpts=PTS-STARTPTS[a${i}]`,
@@ -197,9 +249,13 @@ function buildXfadeArgs(
 
 		const eqFilter = clip.filter ? buildEqFilterString(clip.filter) : null;
 		const eqPart = eqFilter ? `,${eqFilter}` : "";
+		const transformFilter = clip.transform
+			? buildTransformFilter(clip.transform, width, height)
+			: null;
+		const transformPart = transformFilter ? `,${transformFilter}` : "";
 
 		filterParts.push(
-			`[${idx}:v]trim=start=${clip.inPoint}:end=${clip.outPoint},setpts=PTS-STARTPTS,scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2${eqPart}[v${i}]`,
+			`[${idx}:v]trim=start=${clip.inPoint}:end=${clip.outPoint},setpts=PTS-STARTPTS,scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2${eqPart}${transformPart}[v${i}]`,
 		);
 		filterParts.push(
 			`[${idx}:a]atrim=start=${clip.inPoint}:end=${clip.outPoint},asetpts=PTS-STARTPTS[a${i}]`,
