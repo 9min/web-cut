@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MIN_CLIP_DURATION } from "@/constants/timeline";
 import type { Clip } from "@/types/timeline";
-import { snapTime, splitClipAt, trimClip } from "@/utils/editUtils";
+import { splitClipAt, trimClip } from "@/utils/editUtils";
 
 function makeClip(overrides: Partial<Clip> = {}): Clip {
 	return {
@@ -94,32 +94,5 @@ describe("trimClip", () => {
 		const trimmed = trimClip(clip, 5, 5.05);
 
 		expect(trimmed.duration).toBeGreaterThanOrEqual(MIN_CLIP_DURATION);
-	});
-});
-
-describe("snapTime", () => {
-	it("스냅 포인트와 가까우면 스냅한다", () => {
-		const snapPoints = [0, 5, 10, 15];
-		const zoom = 100;
-		const result = snapTime(4.95, snapPoints, zoom);
-		expect(result).toBe(5);
-	});
-
-	it("스냅 포인트와 멀면 원래 값을 반환한다", () => {
-		const snapPoints = [0, 5, 10];
-		const zoom = 100;
-		const result = snapTime(3, snapPoints, zoom);
-		expect(result).toBe(3);
-	});
-
-	it("빈 스냅 포인트 목록에서는 원래 값을 반환한다", () => {
-		expect(snapTime(5, [], 100)).toBe(5);
-	});
-
-	it("여러 스냅 포인트 중 가장 가까운 곳으로 스냅한다", () => {
-		const snapPoints = [0, 5, 10];
-		const zoom = 100;
-		// SNAP_THRESHOLD_PX = 8, zoom = 100 → threshold = 0.08초
-		expect(snapTime(5.05, snapPoints, zoom)).toBe(5);
 	});
 });

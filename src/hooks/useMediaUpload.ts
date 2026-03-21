@@ -64,8 +64,9 @@ export function useMediaUpload(): UseMediaUploadReturn {
 				try {
 					const metadata = await extractMetadata(file, type);
 					updateAsset(id, { metadata, status: "ready" });
-				} catch {
-					updateAsset(id, { status: "error" });
+				} catch (error) {
+					const errorMessage = error instanceof Error ? error.message : "알 수 없는 오류";
+					updateAsset(id, { status: "error", errorMessage });
 				}
 			}
 

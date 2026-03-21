@@ -7,6 +7,7 @@ import type {
 } from "@/types/media";
 
 const DEFAULT_FPS = 30;
+const METADATA_TIMEOUT_MS = 10_000;
 
 export function extractMetadata(file: File, type: MediaType): Promise<MediaMetadata | null> {
 	switch (type) {
@@ -25,7 +26,13 @@ function extractVideoMetadata(file: File): Promise<VideoMetadata | null> {
 		const url = URL.createObjectURL(file);
 		video.src = url;
 
+		const timer = setTimeout(() => {
+			URL.revokeObjectURL(url);
+			resolve(null);
+		}, METADATA_TIMEOUT_MS);
+
 		video.onloadedmetadata = () => {
+			clearTimeout(timer);
 			URL.revokeObjectURL(url);
 			resolve({
 				width: video.videoWidth,
@@ -36,6 +43,7 @@ function extractVideoMetadata(file: File): Promise<VideoMetadata | null> {
 		};
 
 		video.onerror = () => {
+			clearTimeout(timer);
 			URL.revokeObjectURL(url);
 			resolve(null);
 		};
@@ -50,7 +58,13 @@ function extractAudioMetadata(file: File): Promise<AudioMetadata | null> {
 		const url = URL.createObjectURL(file);
 		audio.src = url;
 
+		const timer = setTimeout(() => {
+			URL.revokeObjectURL(url);
+			resolve(null);
+		}, METADATA_TIMEOUT_MS);
+
 		audio.onloadedmetadata = () => {
+			clearTimeout(timer);
 			URL.revokeObjectURL(url);
 			resolve({
 				duration: audio.duration,
@@ -60,6 +74,7 @@ function extractAudioMetadata(file: File): Promise<AudioMetadata | null> {
 		};
 
 		audio.onerror = () => {
+			clearTimeout(timer);
 			URL.revokeObjectURL(url);
 			resolve(null);
 		};
@@ -74,7 +89,13 @@ function extractImageMetadata(file: File): Promise<ImageMetadata | null> {
 		const url = URL.createObjectURL(file);
 		img.src = url;
 
+		const timer = setTimeout(() => {
+			URL.revokeObjectURL(url);
+			resolve(null);
+		}, METADATA_TIMEOUT_MS);
+
 		img.onload = () => {
+			clearTimeout(timer);
 			URL.revokeObjectURL(url);
 			resolve({
 				width: img.naturalWidth,
@@ -83,6 +104,7 @@ function extractImageMetadata(file: File): Promise<ImageMetadata | null> {
 		};
 
 		img.onerror = () => {
+			clearTimeout(timer);
 			URL.revokeObjectURL(url);
 			resolve(null);
 		};

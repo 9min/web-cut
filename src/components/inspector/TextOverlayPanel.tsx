@@ -15,6 +15,7 @@ import { useDebouncedSnapshot } from "@/hooks/useDebouncedSnapshot";
 import { useHistoryStore } from "@/stores/useHistoryStore";
 import { useTimelineStore } from "@/stores/useTimelineStore";
 import type { TextOverlay } from "@/types/textOverlay";
+import { sanitizeTextInput } from "@/utils/textSanitizer";
 
 interface TextOverlayPanelProps {
 	trackId: string;
@@ -36,8 +37,9 @@ export function TextOverlayPanel({
 
 	const handleContentChange = useCallback(
 		(value: string) => {
+			const sanitized = sanitizeTextInput(value, TEXT_MAX_LENGTH);
 			scheduleSnapshot();
-			updateTextClipOverlay(trackId, textClipId, { content: value });
+			updateTextClipOverlay(trackId, textClipId, { content: sanitized });
 		},
 		[trackId, textClipId, updateTextClipOverlay, scheduleSnapshot],
 	);
