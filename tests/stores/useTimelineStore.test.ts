@@ -429,4 +429,143 @@ describe("useTimelineStore", () => {
 			expect(clipX?.startTime).toBe(5);
 		});
 	});
+
+	describe("addTransition", () => {
+		it("클립에 outTransition을 추가한다", () => {
+			useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "A", trackId: "t1", startTime: 0, duration: 5 }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "B", trackId: "t1", startTime: 5, duration: 5 }));
+
+			useTimelineStore.getState().addTransition("t1", "A", { type: "fade", duration: 0.5 });
+
+			const clipA = useTimelineStore.getState().tracks[0]?.clips.find((c) => c.id === "A");
+			expect(clipA?.outTransition).toEqual({ type: "fade", duration: 0.5 });
+		});
+
+		it("다음 클립이 없으면 트랜지션을 추가하지 않는다", () => {
+			useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "A", trackId: "t1", startTime: 0, duration: 5 }));
+
+			useTimelineStore.getState().addTransition("t1", "A", { type: "fade", duration: 0.5 });
+
+			const clipA = useTimelineStore.getState().tracks[0]?.clips.find((c) => c.id === "A");
+			expect(clipA?.outTransition).toBeUndefined();
+		});
+	});
+
+	describe("removeTransition", () => {
+		it("클립의 outTransition을 제거한다", () => {
+			useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
+			useTimelineStore.getState().addClip(
+				"t1",
+				createTestClip({
+					id: "A",
+					trackId: "t1",
+					startTime: 0,
+					duration: 5,
+					outTransition: { type: "fade", duration: 0.5 },
+				}),
+			);
+
+			useTimelineStore.getState().removeTransition("t1", "A");
+
+			const clipA = useTimelineStore.getState().tracks[0]?.clips.find((c) => c.id === "A");
+			expect(clipA?.outTransition).toBeUndefined();
+		});
+	});
+
+	describe("updateTransition", () => {
+		it("트랜지션 타입을 변경한다", () => {
+			useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
+			useTimelineStore.getState().addClip(
+				"t1",
+				createTestClip({
+					id: "A",
+					trackId: "t1",
+					startTime: 0,
+					duration: 5,
+					outTransition: { type: "fade", duration: 0.5 },
+				}),
+			);
+
+			useTimelineStore.getState().updateTransition("t1", "A", { type: "dissolve" });
+
+			const clipA = useTimelineStore.getState().tracks[0]?.clips.find((c) => c.id === "A");
+			expect(clipA?.outTransition?.type).toBe("dissolve");
+			expect(clipA?.outTransition?.duration).toBe(0.5);
+		});
+
+		it("outTransition이 없는 클립은 무시한다", () => {
+			useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "A", trackId: "t1", startTime: 0, duration: 5 }));
+
+			useTimelineStore.getState().updateTransition("t1", "A", { type: "dissolve" });
+
+			const clipA = useTimelineStore.getState().tracks[0]?.clips.find((c) => c.id === "A");
+			expect(clipA?.outTransition).toBeUndefined();
+		});
+	});
+
+	describe("removeClip (트랜지션 정합성)", () => {
+		it("클립 삭제 시 이전 클립의 outTransition도 제거한다", () => {
+			useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
+			useTimelineStore.getState().addClip(
+				"t1",
+				createTestClip({
+					id: "A",
+					trackId: "t1",
+					startTime: 0,
+					duration: 5,
+					outTransition: { type: "fade", duration: 0.5 },
+				}),
+			);
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "B", trackId: "t1", startTime: 5, duration: 5 }));
+
+			useTimelineStore.getState().removeClip("t1", "B");
+
+			const clipA = useTimelineStore.getState().tracks[0]?.clips.find((c) => c.id === "A");
+			expect(clipA?.outTransition).toBeUndefined();
+		});
+	});
+
+	describe("splitClip (트랜지션 정합성)", () => {
+		it("분할 시 outTransition을 오른쪽 클립에 이전한다", () => {
+			useTimelineStore.getState().addTrack(createTestTrack({ id: "t1" }));
+			useTimelineStore.getState().addClip(
+				"t1",
+				createTestClip({
+					id: "A",
+					trackId: "t1",
+					startTime: 0,
+					duration: 10,
+					inPoint: 0,
+					outPoint: 10,
+					outTransition: { type: "fade", duration: 0.5 },
+				}),
+			);
+			useTimelineStore
+				.getState()
+				.addClip("t1", createTestClip({ id: "B", trackId: "t1", startTime: 10, duration: 5 }));
+
+			useTimelineStore.getState().splitClip("t1", "A", 5);
+
+			const clips = useTimelineStore.getState().tracks[0]?.clips;
+			// 왼쪽 클립은 outTransition 없음
+			const leftClip = clips?.find((c) => c.startTime === 0 && c.duration === 5);
+			expect(leftClip?.outTransition).toBeUndefined();
+			// 오른쪽 클립이 outTransition을 가짐
+			const rightClip = clips?.find((c) => c.startTime === 5 && c.duration === 5);
+			expect(rightClip?.outTransition).toEqual({ type: "fade", duration: 0.5 });
+		});
+	});
 });

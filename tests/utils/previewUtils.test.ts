@@ -77,4 +77,54 @@ describe("getVisibleClipsAtTime", () => {
 
 		expect(result[0]?.localTime).toBe(5); // inPoint(2) + (8 - 5) = 5
 	});
+
+	it("트랜지션 없으면 transitionProgress가 없다", () => {
+		const clips = [makeClip({ id: "a", startTime: 0, duration: 5 })];
+		const tracks = [makeTrack(clips)];
+		const result = getVisibleClipsAtTime(tracks, 3);
+
+		expect(result[0]?.transitionProgress).toBeUndefined();
+		expect(result[0]?.isOutgoing).toBeUndefined();
+	});
+
+	it("트랜지션 구간에서 outgoing+incoming 두 클립을 반환한다", () => {
+		const clips = [
+			makeClip({
+				id: "a",
+				startTime: 0,
+				duration: 5,
+				outTransition: { type: "fade", duration: 1 },
+			}),
+			makeClip({ id: "b", startTime: 5, duration: 5 }),
+		];
+		const tracks = [makeTrack(clips)];
+		// 트랜지션 구간: 4~5
+		const result = getVisibleClipsAtTime(tracks, 4.5);
+
+		expect(result).toHaveLength(2);
+		const outgoing = result.find((r) => r.isOutgoing);
+		const incoming = result.find((r) => !r.isOutgoing);
+		expect(outgoing?.clip.id).toBe("a");
+		expect(incoming?.clip.id).toBe("b");
+		expect(outgoing?.transitionProgress).toBeCloseTo(0.5);
+		expect(outgoing?.transitionType).toBe("fade");
+	});
+
+	it("트랜지션 구간 밖에서는 단일 클립만 반환한다", () => {
+		const clips = [
+			makeClip({
+				id: "a",
+				startTime: 0,
+				duration: 5,
+				outTransition: { type: "fade", duration: 1 },
+			}),
+			makeClip({ id: "b", startTime: 5, duration: 5 }),
+		];
+		const tracks = [makeTrack(clips)];
+		const result = getVisibleClipsAtTime(tracks, 2);
+
+		expect(result).toHaveLength(1);
+		expect(result[0]?.clip.id).toBe("a");
+		expect(result[0]?.transitionProgress).toBeUndefined();
+	});
 });

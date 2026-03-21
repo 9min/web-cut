@@ -12,7 +12,12 @@ import { useMediaStore } from "@/stores/useMediaStore";
 import { usePlaybackStore } from "@/stores/usePlaybackStore";
 import { useProjectStore } from "@/stores/useProjectStore";
 import { useTimelineStore } from "@/stores/useTimelineStore";
-import { getVisibleClipsAtTime } from "@/utils/previewUtils";
+import { getVisibleClipsAtTime, type VisibleClip } from "@/utils/previewUtils";
+import {
+	applyFadeTransition,
+	applyWipeTransition,
+	clearTransitionEffects,
+} from "@/utils/transitionRenderer";
 
 interface SpriteEntry {
 	sprite: Sprite;
@@ -96,15 +101,20 @@ export function usePreviewRenderer(
 
 				entry.sprite.visible = true;
 				fitSprite(entry.sprite, pw, ph);
+				clearTransitionEffects(entry.sprite);
 
 				if (entry.video) {
 					syncVideo(entry.video, vc.localTime);
 				}
 			}
 
+			// 트랜지션 효과 적용
+			applyTransitions(visible, pw, ph);
+
 			for (const [id, entry] of entriesRef.current) {
 				if (!activeIds.has(id)) {
 					entry.sprite.visible = false;
+					clearTransitionEffects(entry.sprite);
 					if (entry.video && !entry.video.paused) entry.video.pause();
 				}
 			}
@@ -189,6 +199,35 @@ export function usePreviewRenderer(
 				video.play().catch(() => {});
 			} else if (!playing && !video.paused) {
 				video.pause();
+			}
+		};
+
+		const applyTransitions = (visibleClips: VisibleClip[], pw: number, ph: number) => {
+			const outgoing = visibleClips.find((v) => v.isOutgoing);
+			const incoming = visibleClips.find(
+				(v) => v.transitionProgress !== undefined && !v.isOutgoing,
+			);
+
+			if (!outgoing || !incoming || outgoing.transitionProgress === undefined) return;
+
+			const outEntry = entriesRef.current.get(outgoing.clip.id);
+			const inEntry = entriesRef.current.get(incoming.clip.id);
+			if (!outEntry || !inEntry) return;
+
+			const progress = outgoing.transitionProgress;
+			const type = outgoing.transitionType;
+
+			switch (type) {
+				case "fade":
+				case "dissolve":
+					applyFadeTransition(outEntry.sprite, inEntry.sprite, progress);
+					break;
+				case "wipe-left":
+					applyWipeTransition(outEntry.sprite, inEntry.sprite, progress, "left", pw, ph);
+					break;
+				case "wipe-right":
+					applyWipeTransition(outEntry.sprite, inEntry.sprite, progress, "right", pw, ph);
+					break;
 			}
 		};
 
