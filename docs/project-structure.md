@@ -90,10 +90,6 @@ src/stores/
 └── useEditModeStore.ts         # 편집 모드 상태 (선택/트림/분할 등)
 ```
 
-### `src/workers/` — Web Worker
-
-무거운 연산을 메인 스레드에서 분리한다. 현재 디렉토리는 예약되어 있으며, FFmpeg.wasm 인코딩은 현재 `ffmpegService.ts`에서 메인 스레드로 실행된다.
-
 ### `src/types/` — 타입 정의
 
 ```ts
