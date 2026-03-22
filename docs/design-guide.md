@@ -145,14 +145,14 @@ Tailwind 기본 브레이크포인트를 따른다.
 
 ### Tailwind CSS 다크모드 설정
 
-`tailwind.config.js`에서 `darkMode: "class"`를 설정한다.
+이 프로젝트는 Tailwind CSS v4를 사용한다. CSS 파일(`src/app/index.css`)에서 `@import "tailwindcss"`로 설정하며, 별도의 `tailwind.config.js`가 없다.
 
-```js
-// tailwind.config.js
-export default {
-  darkMode: "class",
-  // ...
-};
+다크모드 `class` 전략을 사용하려면 CSS 파일에서 다음과 같이 설정한다:
+
+```css
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
 ```
 
 ### dark: 클래스 사용법

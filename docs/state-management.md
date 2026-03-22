@@ -21,7 +21,12 @@ src/stores/
 ├── useMediaStore.ts            # 미디어 라이브러리
 ├── useTimelineStore.ts         # 타임라인, 트랙, 클립
 ├── usePlaybackStore.ts         # 재생 상태
-└── useHistoryStore.ts          # Undo/Redo
+├── useHistoryStore.ts          # Undo/Redo
+├── useExportStore.ts           # 내보내기 상태 (진행률, 설정 등)
+├── useZoomStore.ts             # 타임라인 줌 상태
+├── useUIStore.ts               # UI 상태 (패널 토글 등)
+├── useClipboardStore.ts        # 클립보드 (복사/붙여넣기) 상태
+└── useEditModeStore.ts         # 편집 모드 상태 (선택/트림/분할 등)
 ```
 
 ### 프로젝트 스토어
@@ -124,8 +129,9 @@ export const useTimelineStore = create<TimelineState>()((set) => ({
           : t,
       ),
     })),
-  splitClip: (_trackId, _clipId, _splitTime) => {
-    // Phase 3에서 구현
+  splitClip: (trackId, clipId, splitTime) => {
+    // 클립을 두 개로 분할하는 로직 구현됨
+    // 실제 구현은 src/stores/useTimelineStore.ts 참조
   },
   selectClip: (clipId) => set({ selectedClipId: clipId }),
 }));
@@ -210,7 +216,9 @@ export const useHistoryStore = create<HistoryState>()((set, get) => ({
 | 도구 | 사용 시점 | 예시 |
 |------|----------|------|
 | `useState` | 단순 토글, 단일 값 | 드래그 중 여부, 호버 상태 |
-| `useReducer` | 복잡한 상태 로직, 여러 필드 연관 | 내보내기 설정 폼 |
+| `useReducer` | 복잡한 상태 로직, 여러 필드 연관 | 복잡한 로컬 폼 상태 |
+
+> 편집기 핵심 상태(내보내기 설정, UI 패널 상태 등)는 모두 Zustand 스토어로 관리한다. `useState`/`useReducer`는 컴포넌트 내부 로컬 UI 상태에만 사용한다.
 
 ## Zustand 사용 규칙
 

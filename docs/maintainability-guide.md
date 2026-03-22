@@ -10,10 +10,10 @@
 프로젝트는 다음 4개 레이어로 구성한다.
 
 ```
-Presentation  →  src/components/, src/pages/
+Presentation  →  src/components/
 Application   →  src/hooks/, src/stores/
-Domain        →  src/types/, src/utils/
-Infrastructure→  src/services/, src/lib/
+Domain        →  src/types/, src/utils/, src/constants/
+Infrastructure→  src/services/
 ```
 
 ### 의존성 방향 규칙
@@ -174,21 +174,21 @@ export function TodoList() {
 ```
 src/
 ├── components/
-│   ├── ui/                     # 범용 UI 컴포넌트
-│   └── feature/
-│       ├── todo/               # Todo 기능 모듈
-│       │   ├── TodoList.tsx
-│       │   ├── TodoItem.tsx
-│       │   └── TodoForm.tsx
-│       └── auth/               # Auth 기능 모듈
-│           ├── LoginForm.tsx
-│           └── SignupForm.tsx
+│   ├── ui/                     # 범용 UI 컴포넌트 (ErrorBoundary 등)
+│   ├── timeline/               # 타임라인 기능 모듈
+│   │   ├── Timeline.tsx
+│   │   ├── ClipBlock.tsx
+│   │   └── TrackRow.tsx
+│   └── inspector/              # 인스펙터 기능 모듈
+│       ├── InspectorPanel.tsx
+│       ├── FilterPanel.tsx
+│       └── TransformPanel.tsx
 ├── hooks/
-│   ├── useTodoList.ts
-│   └── useAuth.ts
+│   ├── useTimelineDragDrop.ts
+│   └── usePlayback.ts
 └── types/
-    ├── todo.ts
-    └── auth.ts
+    ├── timeline.ts
+    └── media.ts
 ```
 
 ---

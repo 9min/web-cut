@@ -77,7 +77,7 @@
 
 - 모든 미디어 처리는 브라우저 내에서 수행한다 (서버 통신 없음).
 - 대용량 미디어 파일은 `URL.createObjectURL()`로 참조하여 메모리 부하를 최소화한다.
-- FFmpeg.wasm 인코딩은 Web Worker에서 처리하여 UI 블로킹을 방지한다.
+- FFmpeg.wasm 인코딩은 메인 스레드에서 처리하되, `ffmpeg.on("progress")` 콜백으로 UI 업데이트를 유지한다. (Web Worker 분리는 향후 개선 과제)
 - 타임라인 상태는 Zustand 스토어에서 중앙 관리한다.
 - PixiJS 렌더링 루프는 `requestAnimationFrame` 기반으로 구현한다.
 - COOP/COEP 헤더 설정이 필요하다 (FFmpeg.wasm의 SharedArrayBuffer 지원).
