@@ -6,10 +6,7 @@
 
 ```json
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.0/schema.json",
-  "organizeImports": {
-    "enabled": true
-  },
+  "$schema": "https://biomejs.dev/schemas/2.0.0/schema.json",
   "formatter": {
     "enabled": true,
     "indentStyle": "tab",
@@ -39,7 +36,14 @@
       },
       "suspicious": {
         "noExplicitAny": "error",
-        "noConsoleLog": "warn"
+        "noConsole": "warn"
+      }
+    }
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
       }
     }
   },
@@ -52,14 +56,7 @@
     }
   },
   "files": {
-    "ignore": [
-      "node_modules",
-      "dist",
-      "build",
-      ".next",
-      "coverage",
-      "*.min.js"
-    ]
+    "includes": ["**", "!**/node_modules", "!**/dist", "!**/build", "!**/coverage", "!**/*.min.js"]
   }
 }
 ```
@@ -80,31 +77,31 @@
 
 | 규칙 | 설명 |
 |------|------|
-| `noConsoleLog` | `console.log` 사용 경고 |
+| `noConsole` | `console.*` 사용 경고 |
 | `noNonNullAssertion` | `!` non-null 단언 경고 |
 | `useExhaustiveDependencies` | 훅 의존성 배열 누락 경고 |
 | `noExcessiveCognitiveComplexity` | 과도한 복잡도 경고 |
 
 ## import 정렬 규칙
 
-Biome의 `organizeImports`가 자동으로 import를 정렬한다.
+Biome의 `assist.actions.source.organizeImports`가 자동으로 import를 정렬한다.
 
 권장 import 순서:
 
 ```ts
 // 1. 외부 라이브러리
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 // 2. 내부 모듈 (절대 경로)
-import { Button } from "@/components/ui/Button";
-import { useAuth } from "@/hooks/useAuth";
+import { ClipBlock } from "@/components/timeline/ClipBlock";
+import { useTimelineStore } from "@/stores/useTimelineStore";
 
 // 3. 타입 import
-import type { User } from "@/types/user";
+import type { Clip } from "@/types/timeline";
 
 // 4. 상대 경로 모듈
-import { validateForm } from "./utils";
+import { calculateClipLayout } from "./utils";
 ```
 
 ## 포매팅 규칙 요약
@@ -158,18 +155,18 @@ pre-commit:
 ### 설치
 
 ```bash
-npm install -D lefthook
-npx lefthook install
+pnpm install
+pnpm lefthook install
 ```
 
 ## CLI 명령어
 
 ```bash
-# 린트 검사
-npx biome check .
+# 린트 검사 + 자동 수정
+pnpm lint
 
-# 린트 + 자동 수정
-npx biome check --write .
+# 린트 검사만 (수정 없음)
+pnpm lint:check
 
 # 포매팅만 실행
 npx biome format --write .
