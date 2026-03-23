@@ -17,6 +17,22 @@ export const QUALITY_CRF: Record<VideoFormat, Record<QualityPreset, number>> = {
 	webm: { high: 20, medium: 30, low: 40 },
 };
 
+/** FFmpeg 인코딩 옵션 — buildFFmpegArgs에 전달 */
+export interface EncoderOptions {
+	codec: VideoCodec;
+	crf: number;
+	preset: string;
+	audioCodec: string;
+	outputFile: string;
+}
+
+/** WASM 환경 최적 프리셋: high만 fast, 나머지는 ultrafast */
+export const PRESET_MAP: Record<QualityPreset, string> = {
+	high: "fast",
+	medium: "ultrafast",
+	low: "ultrafast",
+};
+
 export const FORMAT_LABELS: Record<VideoFormat, string> = {
 	mp4: "MP4",
 	webm: "WebM",

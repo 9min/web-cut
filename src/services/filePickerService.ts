@@ -32,7 +32,8 @@ export function fallbackDownload(blob: Blob, fileName: string): void {
 	a.href = url;
 	a.download = fileName;
 	a.click();
-	URL.revokeObjectURL(url);
+	// 브라우저가 다운로드를 시작할 시간을 확보한 후 URL 해제
+	setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 /** showSaveFilePicker를 호출하여 파일을 저장한다. 사용자 취소 시 false 반환 */
