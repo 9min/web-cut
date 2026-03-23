@@ -1,5 +1,11 @@
 import { useCallback } from "react";
-import { downloadBlob, getFFmpeg, runExport, writeInputFile } from "@/services/ffmpegService";
+import {
+	cleanupWasmFS,
+	downloadBlob,
+	getFFmpeg,
+	runExport,
+	writeInputFile,
+} from "@/services/ffmpegService";
 import { useExportStore } from "@/stores/useExportStore";
 import { useMediaStore } from "@/stores/useMediaStore";
 import { useProjectStore } from "@/stores/useProjectStore";
@@ -128,9 +134,19 @@ export function useExport() {
 			const safeName = projectName.replace(/[^a-zA-Z0-9가-힣_-]/g, "_");
 			await downloadBlob(outputData, `${safeName}.${format}`, mimeType);
 
+			// WASM FS 임시 파일 정리
+			await cleanupWasmFS(ff);
+
 			setStatus("done");
 			setProgress(100);
 			useExportStore.setState({ abortController: null });
+
+			// 3초 후 자동으로 idle 상태로 복귀
+			setTimeout(() => {
+				if (useExportStore.getState().status === "done") {
+					useExportStore.getState().reset();
+				}
+			}, 3000);
 		} catch (err) {
 			if (err instanceof DOMException && err.name === "AbortError") {
 				// 취소 시 상태는 cancelExport에서 이미 설정됨

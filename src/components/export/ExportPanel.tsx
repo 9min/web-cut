@@ -160,7 +160,7 @@ export function ExportPanel() {
 				<button
 					type="button"
 					onClick={startExport}
-					disabled={status === "done" || status === "cancelled"}
+					disabled={isExporting}
 					className="flex items-center justify-center gap-2 rounded bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-500 disabled:opacity-50"
 				>
 					<Download size={14} />
