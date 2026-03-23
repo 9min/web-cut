@@ -89,6 +89,24 @@ export async function runExport(ff: FFmpeg, args: string[]): Promise<Uint8Array>
 	return data as Uint8Array;
 }
 
+/** WASM 파일시스템의 임시 파일을 정리한다 */
+export async function cleanupWasmFS(ff: FFmpeg): Promise<void> {
+	try {
+		const files = await ff.listDir("/");
+		for (const file of files) {
+			if (file.name !== "." && file.name !== "..") {
+				try {
+					await ff.deleteFile(`/${file.name}`);
+				} catch {
+					// 개별 파일 삭제 실패 무시
+				}
+			}
+		}
+	} catch {
+		// listDir 실패 무시
+	}
+}
+
 export async function downloadBlob(
 	data: Uint8Array,
 	fileName: string,
