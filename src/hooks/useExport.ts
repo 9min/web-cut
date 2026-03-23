@@ -4,7 +4,8 @@ import { useExportStore } from "@/stores/useExportStore";
 import { useMediaStore } from "@/stores/useMediaStore";
 import { useProjectStore } from "@/stores/useProjectStore";
 import { useTimelineStore } from "@/stores/useTimelineStore";
-import { CODEC_MAP, QUALITY_CRF } from "@/types/exportSettings";
+import type { EncoderOptions } from "@/types/exportSettings";
+import { CODEC_MAP, PRESET_MAP, QUALITY_CRF } from "@/types/exportSettings";
 import { buildFFmpegArgs, getSortedAudioClips, getSortedVideoClips } from "@/utils/exportUtils";
 
 /** 취소 여부를 확인하고 취소된 경우 에러를 던진다 */
@@ -102,20 +103,18 @@ export function useExport() {
 
 			// 단계 3: 인코딩 (30-95%)
 			setStatus("encoding");
-			const outputFile = `output.${format}`;
-			const args = buildFFmpegArgs(clips, assetFileMap, res.width, res.height, tracks);
+			const encoderOpts: EncoderOptions = {
+				codec: CODEC_MAP[format],
+				crf: QUALITY_CRF[format][quality],
+				preset: PRESET_MAP[quality],
+				audioCodec: format === "webm" ? "libopus" : "aac",
+				outputFile: `output.${format}`,
+			};
+			const args = buildFFmpegArgs(clips, assetFileMap, res.width, res.height, tracks, encoderOpts);
 
 			if (args.length === 0) {
 				setError("FFmpeg 명령어 생성에 실패했습니다.");
 				return;
-			}
-
-			// 코덱/품질 args를 output 이전에 삽입
-			const codec = CODEC_MAP[format];
-			const crf = QUALITY_CRF[format][quality];
-			const outputIdx = args.indexOf("output.mp4");
-			if (outputIdx !== -1) {
-				args.splice(outputIdx, 1, "-c:v", codec, "-crf", String(crf), outputFile);
 			}
 
 			const outputData = await runExport(ff, args);

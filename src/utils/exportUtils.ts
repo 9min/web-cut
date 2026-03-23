@@ -1,7 +1,19 @@
 import { TRANSITION_TO_FFMPEG_MAP } from "@/constants/transition";
+import type { EncoderOptions } from "@/types/exportSettings";
 import type { Clip, ClipTransform, Track } from "@/types/timeline";
 import { buildEqFilterString } from "@/utils/filterUtils";
 import { buildDrawtextFilter } from "@/utils/textOverlayExport";
+
+/** 인코더 옵션을 FFmpeg args에 추가하는 공통 헬퍼 */
+function appendEncoderArgs(args: string[], opts: EncoderOptions): void {
+	args.push("-c:v", opts.codec);
+	if (opts.codec === "libx264") {
+		args.push("-preset", opts.preset, "-crf", String(opts.crf));
+	} else if (opts.codec === "libvpx-vp9") {
+		args.push("-b:v", "0", "-crf", String(opts.crf), "-cpu-used", "8", "-deadline", "realtime");
+	}
+	args.push("-c:a", opts.audioCodec, "-movflags", "+faststart", opts.outputFile);
+}
 
 export function getSortedVideoClips(tracks: Track[]): Clip[] {
 	const clips: Clip[] = [];
@@ -120,18 +132,35 @@ export function buildFFmpegArgs(
 	outputWidth: number,
 	outputHeight: number,
 	tracks?: Track[],
+	encoder?: EncoderOptions,
 ): string[] {
 	if (clips.length === 0) return [];
 
+	/** 인코더 옵션 기본값 (하위 호환) */
+	const enc: EncoderOptions = encoder ?? {
+		codec: "libx264",
+		crf: 23,
+		preset: "ultrafast",
+		audioCodec: "aac",
+		outputFile: "output.mp4",
+	};
+
 	if (clips.length === 1) {
-		return buildSingleClipArgs(clips[0] as Clip, assetFileMap, outputWidth, outputHeight, tracks);
+		return buildSingleClipArgs(
+			clips[0] as Clip,
+			assetFileMap,
+			outputWidth,
+			outputHeight,
+			tracks,
+			enc,
+		);
 	}
 
 	if (hasAnyTransition(clips)) {
-		return buildXfadeArgs(clips, assetFileMap, outputWidth, outputHeight, tracks);
+		return buildXfadeArgs(clips, assetFileMap, outputWidth, outputHeight, tracks, enc);
 	}
 
-	return buildConcatArgs(clips, assetFileMap, outputWidth, outputHeight, tracks);
+	return buildConcatArgs(clips, assetFileMap, outputWidth, outputHeight, tracks, enc);
 }
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: 오디오 믹싱 경로 분기 포함
@@ -141,6 +170,7 @@ function buildSingleClipArgs(
 	width: number,
 	height: number,
 	tracks?: Track[],
+	encoder?: EncoderOptions,
 ): string[] {
 	const inputFile = assetFileMap.get(clip.assetId);
 	if (!inputFile) return [];
@@ -205,10 +235,7 @@ function buildSingleClipArgs(
 
 		args.push("-filter_complex", filterParts.join(";"));
 		args.push("-map", "[outv]", "-map", audioMix.outputLabel);
-		args.push("-c:v", "libx264", "-preset", "fast");
-		args.push("-c:a", "aac");
-		args.push("-movflags", "+faststart");
-		args.push("output.mp4");
+		if (encoder) appendEncoderArgs(args, encoder);
 		return args;
 	}
 
@@ -229,7 +256,7 @@ function buildSingleClipArgs(
 		}
 	}
 
-	return [
+	const args = [
 		"-i",
 		inputFile,
 		"-ss",
@@ -238,16 +265,9 @@ function buildSingleClipArgs(
 		String(clip.outPoint - clip.inPoint),
 		"-vf",
 		vf,
-		"-c:v",
-		"libx264",
-		"-preset",
-		"fast",
-		"-c:a",
-		"aac",
-		"-movflags",
-		"+faststart",
-		"output.mp4",
 	];
+	if (encoder) appendEncoderArgs(args, encoder);
+	return args;
 }
 
 function buildConcatArgs(
@@ -256,6 +276,7 @@ function buildConcatArgs(
 	width: number,
 	height: number,
 	tracks?: Track[],
+	encoder?: EncoderOptions,
 ): string[] {
 	const args: string[] = [];
 	const inputIndices = new Map<string, number>();
@@ -337,10 +358,7 @@ function buildConcatArgs(
 
 	args.push("-filter_complex", filterParts.join(";"));
 	args.push("-map", "[outv]", "-map", "[outa]");
-	args.push("-c:v", "libx264", "-preset", "fast");
-	args.push("-c:a", "aac");
-	args.push("-movflags", "+faststart");
-	args.push("output.mp4");
+	if (encoder) appendEncoderArgs(args, encoder);
 
 	return args;
 }
@@ -351,6 +369,7 @@ function buildXfadeArgs(
 	width: number,
 	height: number,
 	tracks?: Track[],
+	encoder?: EncoderOptions,
 ): string[] {
 	const args: string[] = [];
 	const inputIndices = new Map<string, number>();
@@ -465,10 +484,7 @@ function buildXfadeArgs(
 
 	args.push("-filter_complex", filterParts.join(";"));
 	args.push("-map", "[outv]", "-map", "[outa]");
-	args.push("-c:v", "libx264", "-preset", "fast");
-	args.push("-c:a", "aac");
-	args.push("-movflags", "+faststart");
-	args.push("output.mp4");
+	if (encoder) appendEncoderArgs(args, encoder);
 
 	return args;
 }

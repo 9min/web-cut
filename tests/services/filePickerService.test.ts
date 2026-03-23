@@ -35,6 +35,7 @@ describe("filePickerService", () => {
 
 	describe("fallbackDownload", () => {
 		it("a 태그를 생성하고 클릭하여 다운로드한다", () => {
+			vi.useFakeTimers();
 			const clickSpy = vi.fn();
 			const createElementSpy = vi.spyOn(document, "createElement").mockReturnValue({
 				set href(_: string) {},
@@ -49,7 +50,12 @@ describe("filePickerService", () => {
 
 			expect(createElementSpy).toHaveBeenCalledWith("a");
 			expect(clickSpy).toHaveBeenCalled();
+
+			// revokeObjectURL은 다운로드 시간 확보를 위해 지연 호출된다
+			expect(revokeObjectURLSpy).not.toHaveBeenCalled();
+			vi.advanceTimersByTime(60_000);
 			expect(revokeObjectURLSpy).toHaveBeenCalledWith("blob:test");
+			vi.useRealTimers();
 		});
 	});
 
