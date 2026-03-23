@@ -1,6 +1,6 @@
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile, toBlobURL } from "@ffmpeg/util";
-import { MP4_ACCEPT_TYPES, saveFile, WEBM_ACCEPT_TYPES } from "./filePickerService";
+import { fallbackDownload } from "./filePickerService";
 
 let ffmpeg: FFmpeg | null = null;
 
@@ -59,12 +59,9 @@ export async function runExport(ff: FFmpeg, args: string[]): Promise<Uint8Array>
 	return data as Uint8Array;
 }
 
-export async function downloadBlob(
-	data: Uint8Array,
-	fileName: string,
-	mimeType = "video/mp4",
-): Promise<void> {
+export function downloadBlob(data: Uint8Array, fileName: string, mimeType = "video/mp4"): void {
 	const blob = new Blob([new Uint8Array(data)], { type: mimeType });
-	const acceptTypes = mimeType.includes("webm") ? WEBM_ACCEPT_TYPES : MP4_ACCEPT_TYPES;
-	await saveFile(blob, fileName, acceptTypes);
+	// showSaveFilePicker는 사용자 제스처 직후에만 호출 가능하므로,
+	// 긴 비동기 작업(인코딩) 이후에는 a.click() 폴백을 사용한다.
+	fallbackDownload(blob, fileName);
 }
