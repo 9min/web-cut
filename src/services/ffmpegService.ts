@@ -11,7 +11,21 @@ import {
 let ffmpeg: FFmpeg | null = null;
 
 const FFMPEG_BASE_URL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm";
-const CACHE_NAME = "webcut-ffmpeg-v1";
+const CACHE_NAME = "webcut-ffmpeg-v3";
+
+/** 이전 버전의 FFmpeg 캐시를 삭제한다 */
+async function cleanOldCaches(): Promise<void> {
+	try {
+		const keys = await caches.keys();
+		for (const key of keys) {
+			if (key.startsWith("webcut-ffmpeg-") && key !== CACHE_NAME) {
+				await caches.delete(key);
+			}
+		}
+	} catch {
+		// 무시
+	}
+}
 
 /** Cache API를 활용하여 FFmpeg WASM 바이너리를 캐싱한다 */
 async function getCachedBlobURL(url: string, mimeType: string): Promise<string> {
@@ -20,15 +34,22 @@ async function getCachedBlobURL(url: string, mimeType: string): Promise<string> 
 		const cached = await cache.match(url);
 		if (cached) {
 			const blob = await cached.blob();
-			return URL.createObjectURL(blob);
+			if (blob.size > 0) {
+				return URL.createObjectURL(blob);
+			}
+			// 손상된 캐시 엔트리 삭제
+			await cache.delete(url);
 		}
 
 		const response = await fetch(url);
+		if (!response.ok) {
+			throw new Error(`FFmpeg 리소스 로드 실패: HTTP ${response.status}`);
+		}
 		await cache.put(url, response.clone());
 		const blob = await response.blob();
 		return URL.createObjectURL(blob);
 	} catch {
-		// Cache API 미지원 시 폴백
+		// Cache API 미지원 또는 fetch 실패 시 폴백
 		return toBlobURL(url, mimeType);
 	}
 }
@@ -48,6 +69,9 @@ export async function getFFmpeg(onProgress?: (progress: number) => void): Promis
 		coreURL: await getCachedBlobURL(`${FFMPEG_BASE_URL}/ffmpeg-core.js`, "text/javascript"),
 		wasmURL: await getCachedBlobURL(`${FFMPEG_BASE_URL}/ffmpeg-core.wasm`, "application/wasm"),
 	});
+
+	// 이전 버전 캐시 정리 (비동기, 로드 성공 후 백그라운드)
+	cleanOldCaches();
 
 	return ffmpeg;
 }
