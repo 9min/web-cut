@@ -16,11 +16,12 @@ export function PlaybackControls() {
 	const toggleLoop = usePlaybackStore((s) => s.toggleLoop);
 
 	return (
-		<div className="flex items-center gap-3">
+		<div data-testid="playback-controls" className="flex items-center gap-3">
 			<button
 				type="button"
 				onClick={togglePlayback}
 				className="flex h-7 w-7 items-center justify-center rounded bg-gray-700 text-white hover:bg-gray-600"
+				data-testid="play-button"
 				aria-label={isPlaying ? "정지" : "재생"}
 				title={isPlaying ? "정지 (Space)" : "재생 (Space)"}
 			>

@@ -9,7 +9,7 @@ export function MediaPool() {
 	const { uploadFiles, errors, clearErrors } = useMediaUpload();
 
 	return (
-		<div className="flex h-full flex-col gap-2 p-3">
+		<div data-testid="media-pool" className="flex h-full flex-col gap-2 p-3">
 			<h2 className="text-sm font-semibold text-white">미디어</h2>
 			<MediaUploader onFiles={uploadFiles} />
 

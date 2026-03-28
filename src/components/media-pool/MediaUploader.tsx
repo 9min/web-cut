@@ -30,6 +30,7 @@ export function MediaUploader({ onFiles }: MediaUploaderProps) {
 
 	return (
 		<div
+			data-testid="media-uploader"
 			className={cn(
 				"flex flex-col items-center gap-2 rounded-lg border-2 border-dashed p-4 transition-colors",
 				isDragOver ? "border-blue-500 bg-blue-500/10" : "border-gray-700 hover:border-gray-500",

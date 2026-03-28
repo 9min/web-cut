@@ -70,7 +70,10 @@ export function EditorLayout({ header, sidebar, preview, timeline, inspector }: 
 	}, []);
 
 	return (
-		<div className="flex h-screen w-screen flex-col bg-background text-foreground">
+		<div
+			data-testid="editor-layout"
+			className="flex h-screen w-screen flex-col bg-background text-foreground"
+		>
 			<div className="shrink-0">{header}</div>
 			<div className="flex flex-1 overflow-hidden">
 				{/* 모바일 사이드바 토글 버튼 */}
