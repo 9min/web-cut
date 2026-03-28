@@ -9,4 +9,10 @@ export default defineConfig({
 			"@": resolve(__dirname, "src"),
 		},
 	},
+	preview: {
+		headers: {
+			"Cross-Origin-Opener-Policy": "same-origin",
+			"Cross-Origin-Embedder-Policy": "require-corp",
+		},
+	},
 });
