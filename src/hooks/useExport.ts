@@ -125,7 +125,7 @@ export function useExport() {
 				outputFile: `output.${format}`,
 			};
 			const streamCopy = canUseStreamCopy(clips, tracks);
-			const args = buildFFmpegArgs(
+			let args = buildFFmpegArgs(
 				clips,
 				assetFileMap,
 				res.width,
@@ -140,7 +140,21 @@ export function useExport() {
 				return;
 			}
 
-			const outputData = await runExport(ff, args);
+			let outputData = await runExport(ff, args);
+
+			// 스트림 복사가 0바이트 출력을 생성한 경우 재인코딩으로 폴백
+			if (streamCopy && outputData.length === 0) {
+				args = buildFFmpegArgs(
+					clips,
+					assetFileMap,
+					res.width,
+					res.height,
+					tracks,
+					encoderOpts,
+					false,
+				);
+				outputData = await runExport(ff, args);
+			}
 			checkCancelled(signal);
 
 			// 단계 4: 마무리 (95-100%)
