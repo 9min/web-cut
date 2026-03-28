@@ -1,10 +1,11 @@
 import { useCallback } from "react";
+import type { AssetInput } from "@/services/ffmpegService";
 import {
 	cleanupWasmFS,
 	downloadBlob,
+	fetchInputFiles,
 	getFFmpeg,
 	runExport,
-	writeInputFile,
 } from "@/services/ffmpegService";
 import { useExportStore } from "@/stores/useExportStore";
 import { useMediaStore } from "@/stores/useMediaStore";
@@ -12,7 +13,12 @@ import { useProjectStore } from "@/stores/useProjectStore";
 import { useTimelineStore } from "@/stores/useTimelineStore";
 import type { EncoderOptions } from "@/types/exportSettings";
 import { CODEC_MAP, PRESET_MAP, QUALITY_CRF } from "@/types/exportSettings";
-import { buildFFmpegArgs, getSortedAudioClips, getSortedVideoClips } from "@/utils/exportUtils";
+import {
+	buildFFmpegArgs,
+	canUseStreamCopy,
+	getSortedAudioClips,
+	getSortedVideoClips,
+} from "@/utils/exportUtils";
 
 /** 취소 여부를 확인하고 취소된 경우 에러를 던진다 */
 function checkCancelled(signal: AbortSignal): void {
@@ -63,34 +69,27 @@ export function useExport() {
 			setProgress(5);
 
 			const assetFileMap = new Map<string, string>();
+			const uniqueAssetInputs: AssetInput[] = [];
 			const writtenAssets = new Set<string>();
 
-			// 비디오 클립 에셋 쓰기
+			// 비디오 클립 에셋 수집
 			for (const clip of clips) {
 				if (writtenAssets.has(clip.assetId)) continue;
-
 				const asset = assets.find((a) => a.id === clip.assetId);
 				if (!asset) continue;
-
-				checkCancelled(signal);
-
 				const ext = asset.mimeType.includes("mp4") ? "mp4" : "webm";
 				const fileName = `input_${clip.assetId}.${ext}`;
-				await writeInputFile(ff, fileName, asset.objectUrl);
+				uniqueAssetInputs.push({ fileName, url: asset.objectUrl });
 				assetFileMap.set(clip.assetId, fileName);
 				writtenAssets.add(clip.assetId);
 			}
 
-			// 오디오 클립 에셋 쓰기
+			// 오디오 클립 에셋 수집
 			const audioClips = getSortedAudioClips(tracks);
 			for (const audioClip of audioClips) {
 				if (writtenAssets.has(audioClip.assetId)) continue;
-
 				const asset = assets.find((a) => a.id === audioClip.assetId);
 				if (!asset) continue;
-
-				checkCancelled(signal);
-
 				const ext = asset.mimeType.includes("mp3")
 					? "mp3"
 					: asset.mimeType.includes("wav")
@@ -99,9 +98,18 @@ export function useExport() {
 							? "ogg"
 							: "mp3";
 				const fileName = `input_${audioClip.assetId}.${ext}`;
-				await writeInputFile(ff, fileName, asset.objectUrl);
+				uniqueAssetInputs.push({ fileName, url: asset.objectUrl });
 				assetFileMap.set(audioClip.assetId, fileName);
 				writtenAssets.add(audioClip.assetId);
+			}
+
+			checkCancelled(signal);
+
+			// 병렬 fetch → 순차 WASM FS 쓰기
+			const fetchedAssets = await fetchInputFiles(uniqueAssetInputs);
+			for (const { fileName, data } of fetchedAssets) {
+				checkCancelled(signal);
+				await ff.writeFile(fileName, data);
 			}
 
 			setProgress(30);
@@ -116,7 +124,16 @@ export function useExport() {
 				audioCodec: format === "webm" ? "libopus" : "aac",
 				outputFile: `output.${format}`,
 			};
-			const args = buildFFmpegArgs(clips, assetFileMap, res.width, res.height, tracks, encoderOpts);
+			const streamCopy = canUseStreamCopy(clips, tracks);
+			const args = buildFFmpegArgs(
+				clips,
+				assetFileMap,
+				res.width,
+				res.height,
+				tracks,
+				encoderOpts,
+				streamCopy,
+			);
 
 			if (args.length === 0) {
 				setError("FFmpeg 명령어 생성에 실패했습니다.");

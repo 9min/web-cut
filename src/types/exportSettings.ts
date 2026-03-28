@@ -13,7 +13,7 @@ export const CODEC_MAP: Record<VideoFormat, VideoCodec> = {
 };
 
 export const QUALITY_CRF: Record<VideoFormat, Record<QualityPreset, number>> = {
-	mp4: { high: 18, medium: 23, low: 28 },
+	mp4: { high: 17, medium: 23, low: 28 },
 	webm: { high: 20, medium: 30, low: 40 },
 };
 
@@ -26,9 +26,9 @@ export interface EncoderOptions {
 	outputFile: string;
 }
 
-/** WASM 환경 최적 프리셋: high만 fast, 나머지는 ultrafast */
+/** WASM 환경 최적 프리셋: 모든 품질에서 ultrafast 사용 (CRF로 품질 보상) */
 export const PRESET_MAP: Record<QualityPreset, string> = {
-	high: "fast",
+	high: "ultrafast",
 	medium: "ultrafast",
 	low: "ultrafast",
 };
