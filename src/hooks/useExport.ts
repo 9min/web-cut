@@ -13,12 +13,7 @@ import { useProjectStore } from "@/stores/useProjectStore";
 import { useTimelineStore } from "@/stores/useTimelineStore";
 import type { EncoderOptions } from "@/types/exportSettings";
 import { CODEC_MAP, PRESET_MAP, QUALITY_CRF } from "@/types/exportSettings";
-import {
-	buildFFmpegArgs,
-	canUseStreamCopy,
-	getSortedAudioClips,
-	getSortedVideoClips,
-} from "@/utils/exportUtils";
+import { buildFFmpegArgs, getSortedAudioClips, getSortedVideoClips } from "@/utils/exportUtils";
 
 /** 취소 여부를 확인하고 취소된 경우 에러를 던진다 */
 function checkCancelled(signal: AbortSignal): void {
@@ -124,37 +119,14 @@ export function useExport() {
 				audioCodec: format === "webm" ? "libopus" : "aac",
 				outputFile: `output.${format}`,
 			};
-			const streamCopy = canUseStreamCopy(clips, tracks);
-			let args = buildFFmpegArgs(
-				clips,
-				assetFileMap,
-				res.width,
-				res.height,
-				tracks,
-				encoderOpts,
-				streamCopy,
-			);
+			const args = buildFFmpegArgs(clips, assetFileMap, res.width, res.height, tracks, encoderOpts);
 
 			if (args.length === 0) {
 				setError("FFmpeg 명령어 생성에 실패했습니다.");
 				return;
 			}
 
-			let outputData = await runExport(ff, args);
-
-			// 스트림 복사가 0바이트 출력을 생성한 경우 재인코딩으로 폴백
-			if (streamCopy && outputData.length === 0) {
-				args = buildFFmpegArgs(
-					clips,
-					assetFileMap,
-					res.width,
-					res.height,
-					tracks,
-					encoderOpts,
-					false,
-				);
-				outputData = await runExport(ff, args);
-			}
+			const outputData = await runExport(ff, args);
 			checkCancelled(signal);
 
 			// 단계 4: 마무리 (95-100%)
