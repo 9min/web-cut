@@ -1,5 +1,5 @@
 import { Download, X } from "lucide-react";
-import { EXPORT_RESOLUTIONS, SPEED_HINTS } from "@/constants/export";
+import { EXPORT_RESOLUTIONS, type ResolutionLabel, SPEED_HINTS } from "@/constants/export";
 import { useExport } from "@/hooks/useExport";
 import { useExportStore } from "@/stores/useExportStore";
 import type { ExportStatus } from "@/types/export";
@@ -45,8 +45,10 @@ export function ExportPanel() {
 			<div className="flex flex-col gap-2">
 				<div className="flex items-center justify-between">
 					<span className="text-xs text-gray-400">해상도</span>
-					{SPEED_HINTS[resolution.label] && (
-						<span className="text-xs text-gray-500">속도: {SPEED_HINTS[resolution.label]}</span>
+					{SPEED_HINTS[resolution.label as ResolutionLabel] && (
+						<span className="text-xs text-gray-500">
+							속도: {SPEED_HINTS[resolution.label as ResolutionLabel]}
+						</span>
 					)}
 				</div>
 				<div className="flex gap-1">
