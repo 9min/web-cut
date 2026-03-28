@@ -1,53 +1,18 @@
 import { TRANSITION_TO_FFMPEG_MAP } from "@/constants/transition";
 import type { EncoderOptions } from "@/types/exportSettings";
-import type { ClipFilter } from "@/types/filter";
 import type { Clip, ClipTransform, Track } from "@/types/timeline";
 import { buildEqFilterString } from "@/utils/filterUtils";
 import { buildDrawtextFilter } from "@/utils/textOverlayExport";
 
-/** 필터가 기본값인지 확인한다 */
-function isDefaultFilter(filter?: ClipFilter): boolean {
-	if (!filter) return true;
-	return filter.brightness === 0 && filter.contrast === 0 && filter.saturation === 0;
-}
-
-/** 트랜스폼이 기본값인지 확인한다 */
-function isDefaultTransform(transform?: ClipTransform): boolean {
-	if (!transform) return true;
-	return (
-		transform.x === 50 &&
-		transform.y === 50 &&
-		transform.scaleX === 1 &&
-		transform.scaleY === 1 &&
-		transform.rotation === 0
-	);
-}
-
-/** 스트림 복사(재인코딩 없이 바이트 복사)가 가능한지 판별한다 */
-export function canUseStreamCopy(clips: Clip[], tracks?: Track[]): boolean {
-	// 단일 클립만 지원 (concat filter는 -c copy와 호환되지 않음)
-	if (clips.length !== 1) return false;
-
-	// 모든 클립에 필터, 트랜스폼, 트랜지션이 없어야 한다
-	for (const clip of clips) {
-		if (!isDefaultFilter(clip.filter)) return false;
-		if (!isDefaultTransform(clip.transform)) return false;
-		if (clip.outTransition) return false;
-	}
-
-	if (!tracks) return true;
-
-	// 텍스트 클립이 있으면 불가
-	for (const track of tracks) {
-		if (track.type === "text" && track.textClips.length > 0) return false;
-	}
-
-	// 오디오 트랙에 클립이 있으면 불가 (오디오 믹싱 필요)
-	for (const track of tracks) {
-		if (track.type === "audio" && track.clips.length > 0) return false;
-	}
-
-	return true;
+/**
+ * 스트림 복사(재인코딩 없이 바이트 복사)가 가능한지 판별한다.
+ * 주의: FFmpeg.wasm의 WASM FS에서 -c copy가 0바이트 출력을 생성하는 문제로
+ * 현재는 항상 false를 반환한다. 네이티브 FFmpeg 환경에서만 활성화할 수 있다.
+ */
+export function canUseStreamCopy(_clips: Clip[], _tracks?: Track[]): boolean {
+	// FFmpeg.wasm에서 -c copy는 0바이트 출력을 생성한다.
+	// 네이티브 FFmpeg 환경이 아닌 한 스트림 복사를 사용하지 않는다.
+	return false;
 }
 
 /** 단일 클립 스트림 복사 args를 생성한다 */
