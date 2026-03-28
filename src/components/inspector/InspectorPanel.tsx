@@ -1,9 +1,11 @@
 import { AUDIO_VOLUME_DEFAULT } from "@/constants/audio";
 import { DEFAULT_CLIP_FILTER } from "@/constants/filter";
+import { SPEED_DEFAULT } from "@/constants/speed";
 import { TRANSFORM_DEFAULTS } from "@/constants/transform";
 import { useTimelineStore } from "@/stores/useTimelineStore";
 import { AudioPanel } from "./AudioPanel";
 import { FilterPanel } from "./FilterPanel";
+import { SpeedPanel } from "./SpeedPanel";
 import { TextOverlayPanel } from "./TextOverlayPanel";
 import { TransformPanel } from "./TransformPanel";
 
@@ -54,6 +56,9 @@ export function InspectorPanel() {
 							clipId={clip.id}
 							transform={clip.transform ?? TRANSFORM_DEFAULTS}
 						/>
+					</div>
+					<div className="mt-4">
+						<SpeedPanel trackId={track.id} clipId={clip.id} speed={clip.speed ?? SPEED_DEFAULT} />
 					</div>
 				</div>
 			);

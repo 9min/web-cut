@@ -145,7 +145,12 @@ export async function fetchInputFiles(assets: AssetInput[]): Promise<FetchedAsse
 }
 
 export async function runExport(ff: FFmpeg, args: string[]): Promise<Uint8Array> {
-	await ff.exec(args);
+	const exitCode = await ff.exec(args);
+	if (exitCode !== 0) {
+		throw new Error(
+			`FFmpeg 인코딩 실패 (종료 코드: ${exitCode}). 브라우저 콘솔에서 상세 로그를 확인하세요.`,
+		);
+	}
 	// 출력 파일명은 args의 마지막 요소
 	const outputFile = args[args.length - 1] ?? "output.mp4";
 	const data = await ff.readFile(outputFile);

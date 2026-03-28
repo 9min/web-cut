@@ -36,10 +36,11 @@ export function getVisibleClipsAtTime(tracks: Track[], currentTime: number): Vis
 						clip.outTransition?.duration ?? 0,
 					);
 					const outElapsed = currentTime - clip.startTime;
+					const outSpeed = clip.speed ?? 1;
 					result.push({
 						clip,
 						trackId: track.id,
-						localTime: clip.inPoint + outElapsed,
+						localTime: clip.inPoint + outElapsed * outSpeed,
 						muted: track.muted || undefined,
 						transitionProgress: progress,
 						transitionType: clip.outTransition?.type,
@@ -47,10 +48,11 @@ export function getVisibleClipsAtTime(tracks: Track[], currentTime: number): Vis
 					});
 
 					const inElapsed = currentTime - nextClip.startTime;
+					const inSpeed = nextClip.speed ?? 1;
 					result.push({
 						clip: nextClip,
 						trackId: track.id,
-						localTime: nextClip.inPoint + Math.max(0, inElapsed),
+						localTime: nextClip.inPoint + Math.max(0, inElapsed) * inSpeed,
 						muted: track.muted || undefined,
 						transitionProgress: progress,
 						transitionType: clip.outTransition?.type,
@@ -72,10 +74,11 @@ export function getVisibleClipsAtTime(tracks: Track[], currentTime: number): Vis
 			// 일반적인 클립 가시성 체크
 			if (currentTime >= clip.startTime && currentTime < clipEnd) {
 				const elapsed = currentTime - clip.startTime;
+				const clipSpeed = clip.speed ?? 1;
 				result.push({
 					clip,
 					trackId: track.id,
-					localTime: clip.inPoint + elapsed,
+					localTime: clip.inPoint + elapsed * clipSpeed,
 					muted: track.muted || undefined,
 				});
 			}
