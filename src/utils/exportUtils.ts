@@ -166,7 +166,7 @@ export function buildSpeedAudioFilter(speed: number): string | null {
 		parts.push("atempo=2.0");
 		remaining /= 2.0;
 	}
-	parts.push(`atempo=${remaining}`);
+	parts.push(`atempo=${Number.parseFloat(remaining.toFixed(4))}`);
 	return parts.join(",");
 }
 

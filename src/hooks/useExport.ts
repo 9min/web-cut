@@ -120,17 +120,6 @@ export function useExport() {
 				outputFile: `output.${format}`,
 			};
 			const args = buildFFmpegArgs(clips, assetFileMap, res.width, res.height, tracks, encoderOpts);
-			console.log(
-				"[Export] 클립 수:",
-				clips.length,
-				"트랜지션:",
-				clips.filter((c) => c.outTransition).length,
-			);
-			console.log(
-				"[Export] 클립 속도:",
-				clips.map((c) => ({ id: c.id, speed: c.speed ?? 1 })),
-			);
-			console.log("[Export] FFmpeg args:", args);
 
 			if (args.length === 0) {
 				setError("FFmpeg 명령어 생성에 실패했습니다.");

@@ -82,10 +82,6 @@ export async function getFFmpeg(onProgress?: (progress: number) => void): Promis
 
 	ffmpeg = new FFmpeg();
 
-	ffmpeg.on("log", ({ message }) => {
-		console.log("[FFmpeg]", message);
-	});
-
 	if (onProgress) {
 		ffmpeg.on("progress", ({ progress }) => {
 			onProgress(Math.round(progress * 100));
@@ -149,7 +145,6 @@ export async function fetchInputFiles(assets: AssetInput[]): Promise<FetchedAsse
 }
 
 export async function runExport(ff: FFmpeg, args: string[]): Promise<Uint8Array> {
-	console.log("[FFmpeg] 실행 명령:", args.join(" "));
 	const exitCode = await ff.exec(args);
 	if (exitCode !== 0) {
 		throw new Error(
