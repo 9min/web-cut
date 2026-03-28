@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { Clip, Track } from "@/types/timeline";
-import { buildFFmpegArgs, getSortedVideoClips } from "@/utils/exportUtils";
+import {
+	buildFFmpegArgs,
+	buildSpeedAudioFilter,
+	buildSpeedVideoFilter,
+	getSortedVideoClips,
+} from "@/utils/exportUtils";
 
 function makeClip(overrides: Partial<Clip> = {}): Clip {
 	return {
@@ -334,5 +339,138 @@ describe("buildFFmpegArgs", () => {
 		const vfIndex = args.indexOf("-vf");
 		const vfValue = args[vfIndex + 1] ?? "";
 		expect(vfValue).not.toContain("drawtext=");
+	});
+
+	it("동일 에셋 2클립 + 트랜지션: 클립마다 별도 입력 인덱스를 사용한다", () => {
+		const clips = [
+			makeClip({
+				id: "c1",
+				assetId: "a1",
+				startTime: 0,
+				duration: 5,
+				inPoint: 0,
+				outPoint: 5,
+				outTransition: { type: "dissolve", duration: 1 },
+			}),
+			makeClip({ id: "c2", assetId: "a1", startTime: 5, duration: 5, inPoint: 5, outPoint: 10 }),
+		];
+		const assetFileMap = new Map([["a1", "input_a1.mp4"]]);
+		const args = buildFFmpegArgs(clips, assetFileMap, 1920, 1080);
+
+		// 같은 에셋이지만 입력이 2개 생성되어야 한다
+		const inputCount = args.filter((a) => a === "-i").length;
+		expect(inputCount).toBe(2);
+
+		const filterComplex = args[args.indexOf("-filter_complex") + 1] ?? "";
+		// 두 클립이 각각 [0:v]와 [1:v]를 참조해야 한다
+		expect(filterComplex).toContain("[0:v]");
+		expect(filterComplex).toContain("[1:v]");
+		expect(filterComplex).toContain("xfade=transition=dissolve");
+	});
+
+	it("단일 클립 2배속: setpts=PTS/2 비디오 필터와 atempo=2 오디오 필터를 포함한다", () => {
+		const clips = [makeClip({ assetId: "a1", inPoint: 0, outPoint: 10, speed: 2 })];
+		const assetFileMap = new Map([["a1", "input_a1.mp4"]]);
+		const args = buildFFmpegArgs(clips, assetFileMap, 1920, 1080);
+
+		const vfIndex = args.indexOf("-vf");
+		const vfValue = args[vfIndex + 1] ?? "";
+		expect(vfValue).toContain("setpts=PTS/2");
+
+		const afIndex = args.indexOf("-af");
+		const afValue = args[afIndex + 1] ?? "";
+		expect(afValue).toContain("atempo=2");
+	});
+
+	it("단일 클립 2배속: -t 값이 속도 반영된 길이이다", () => {
+		const clips = [makeClip({ assetId: "a1", inPoint: 0, outPoint: 10, speed: 2 })];
+		const assetFileMap = new Map([["a1", "input_a1.mp4"]]);
+		const args = buildFFmpegArgs(clips, assetFileMap, 1920, 1080);
+
+		const tIndex = args.indexOf("-t");
+		const tValue = Number(args[tIndex + 1]);
+		expect(tValue).toBe(5); // 10초 / 2배속 = 5초
+	});
+
+	it("2클립 + 트랜지션 + 속도: xfade offset이 속도 반영된 미디어 길이 기준이다", () => {
+		const clips = [
+			makeClip({
+				id: "c1",
+				assetId: "a1",
+				startTime: 0,
+				duration: 5,
+				inPoint: 0,
+				outPoint: 10,
+				speed: 2,
+				outTransition: { type: "fade", duration: 1 },
+			}),
+			makeClip({ id: "c2", assetId: "a2", startTime: 5, duration: 5, inPoint: 0, outPoint: 5 }),
+		];
+		const assetFileMap = new Map([
+			["a1", "input_a1.mp4"],
+			["a2", "input_a2.mp4"],
+		]);
+		const args = buildFFmpegArgs(clips, assetFileMap, 1920, 1080);
+
+		const filterComplex = args[args.indexOf("-filter_complex") + 1] ?? "";
+		// 첫 클립: 10초 미디어 / 2배속 = 5초, offset = 5 - 1 = 4
+		expect(filterComplex).toContain("xfade=transition=fade:duration=1:offset=4");
+	});
+
+	it("concat 모드에서 속도가 있는 클립에 setpts/atempo를 추가한다", () => {
+		const clips = [
+			makeClip({ id: "c1", assetId: "a1", startTime: 0, inPoint: 0, outPoint: 5, speed: 2 }),
+			makeClip({ id: "c2", assetId: "a2", startTime: 5, inPoint: 0, outPoint: 5 }),
+		];
+		const assetFileMap = new Map([
+			["a1", "input_a1.mp4"],
+			["a2", "input_a2.mp4"],
+		]);
+		const args = buildFFmpegArgs(clips, assetFileMap, 1920, 1080);
+
+		const filterComplex = args[args.indexOf("-filter_complex") + 1] ?? "";
+		// 첫 클립만 속도 필터 적용
+		expect(filterComplex).toMatch(/\[0:v\].*setpts=PTS\/2/);
+		expect(filterComplex).toMatch(/\[0:a\].*atempo=2/);
+		// 두 번째 클립에는 속도 필터 없음
+		expect(filterComplex).not.toMatch(/\[1:v\].*setpts=PTS\/2/);
+	});
+});
+
+describe("buildSpeedVideoFilter", () => {
+	it("1배속이면 null을 반환한다", () => {
+		expect(buildSpeedVideoFilter(1)).toBeNull();
+	});
+
+	it("2배속이면 setpts=PTS/2를 반환한다", () => {
+		expect(buildSpeedVideoFilter(2)).toBe("setpts=PTS/2");
+	});
+
+	it("0.5배속이면 setpts=PTS/0.5를 반환한다", () => {
+		expect(buildSpeedVideoFilter(0.5)).toBe("setpts=PTS/0.5");
+	});
+});
+
+describe("buildSpeedAudioFilter", () => {
+	it("1배속이면 null을 반환한다", () => {
+		expect(buildSpeedAudioFilter(1)).toBeNull();
+	});
+
+	it("2배속이면 atempo=2를 반환한다", () => {
+		expect(buildSpeedAudioFilter(2)).toBe("atempo=2");
+	});
+
+	it("0.5배속이면 atempo=0.5를 반환한다", () => {
+		expect(buildSpeedAudioFilter(0.5)).toBe("atempo=0.5");
+	});
+
+	it("0.25배속이면 atempo를 체이닝한다", () => {
+		const result = buildSpeedAudioFilter(0.25);
+		expect(result).toBe("atempo=0.5,atempo=0.5");
+	});
+
+	it("4배속이면 atempo를 체이닝한다", () => {
+		const result = buildSpeedAudioFilter(4);
+		expect(result).toBe("atempo=2.0,atempo=2");
 	});
 });

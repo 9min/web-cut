@@ -45,6 +45,7 @@ interface TimelineState {
 	resetFilter: (trackId: string, clipId: string) => void;
 	addAudioTrack: () => void;
 	updateClipVolume: (trackId: string, clipId: string, volume: number) => void;
+	updateClipSpeed: (trackId: string, clipId: string, speed: number) => void;
 	updateTransform: (trackId: string, clipId: string, updates: Partial<ClipTransform>) => void;
 	resetTransform: (trackId: string, clipId: string) => void;
 	toggleTrackMuted: (trackId: string) => void;
@@ -441,6 +442,29 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
 							clips: t.clips.map((c) =>
 								c.id === clipId ? { ...c, volume: clamped === 1 ? undefined : clamped } : c,
 							),
+						}
+					: t,
+			),
+		}));
+	},
+
+	updateClipSpeed: (trackId, clipId, speed) => {
+		const clamped = Math.max(0.25, Math.min(4, speed));
+		set((state) => ({
+			tracks: state.tracks.map((t) =>
+				t.id === trackId
+					? {
+							...t,
+							clips: t.clips.map((c) => {
+								if (c.id !== clipId) return c;
+								const mediaDuration = c.outPoint - c.inPoint;
+								const newDuration = mediaDuration / clamped;
+								return {
+									...c,
+									speed: clamped === 1 ? undefined : clamped,
+									duration: newDuration,
+								};
+							}),
 						}
 					: t,
 			),

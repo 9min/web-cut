@@ -181,7 +181,7 @@ export function usePreviewRenderer(
 				}
 
 				if (entry.video) {
-					syncVideo(entry.video, vc.localTime);
+					syncVideo(entry.video, vc.localTime, vc.clip.speed ?? 1);
 					entry.video.muted = !!vc.muted;
 				}
 			}
@@ -351,15 +351,16 @@ export function usePreviewRenderer(
 			loadingRef.current.delete(clipId);
 		};
 
-		const syncVideo = (video: HTMLVideoElement, targetTime: number) => {
-			const { isPlaying: playing, speed } = usePlaybackStore.getState();
+		const syncVideo = (video: HTMLVideoElement, targetTime: number, clipSpeed = 1) => {
+			const { isPlaying: playing, speed: globalSpeed } = usePlaybackStore.getState();
+			const effectiveSpeed = globalSpeed * clipSpeed;
 
 			// 배속에 비례하여 seek 임계값을 확대 (빠를수록 드리프트 허용 범위 증가)
-			const seekThreshold = 0.15 * Math.max(1, speed);
+			const seekThreshold = 0.15 * Math.max(1, effectiveSpeed);
 
-			// 비디오 playbackRate를 스토어 배속과 동기화
-			if (video.playbackRate !== speed) {
-				video.playbackRate = speed;
+			// 비디오 playbackRate를 실효 배속과 동기화
+			if (video.playbackRate !== effectiveSpeed) {
+				video.playbackRate = effectiveSpeed;
 			}
 
 			if (Math.abs(video.currentTime - targetTime) > seekThreshold) {

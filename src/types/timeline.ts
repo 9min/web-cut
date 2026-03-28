@@ -27,6 +27,7 @@ export interface Clip {
 	volume?: number;
 	transform?: ClipTransform;
 	keyframes?: ClipKeyframes;
+	speed?: number;
 }
 
 export interface Track {

@@ -147,6 +147,29 @@ function buildTransformFilter(
 	return parts.length > 0 ? parts.join(",") : null;
 }
 
+/** 클립 속도에 따른 비디오 속도 필터를 반환한다 */
+export function buildSpeedVideoFilter(speed: number): string | null {
+	if (speed === 1) return null;
+	return `setpts=PTS/${speed}`;
+}
+
+/** 클립 속도에 따른 오디오 속도 필터를 반환한다 (atempo 범위 제한 체이닝) */
+export function buildSpeedAudioFilter(speed: number): string | null {
+	if (speed === 1) return null;
+	const parts: string[] = [];
+	let remaining = speed;
+	while (remaining < 0.5) {
+		parts.push("atempo=0.5");
+		remaining /= 0.5;
+	}
+	while (remaining > 2.0) {
+		parts.push("atempo=2.0");
+		remaining /= 2.0;
+	}
+	parts.push(`atempo=${remaining}`);
+	return parts.join(",");
+}
+
 /** 클립 중 하나라도 outTransition이 있는지 확인 */
 function hasAnyTransition(clips: Clip[]): boolean {
 	return clips.some((clip) => clip.outTransition);
@@ -289,7 +312,13 @@ function buildSingleClipArgs(
 		const transformFilter = clip.transform
 			? buildTransformFilter(clip.transform, width, height)
 			: null;
-		let vf = `[0:v]trim=start=${clip.inPoint}:end=${clip.outPoint},setpts=PTS-STARTPTS,${scaleFilter}`;
+		const clipSpeed = clip.speed ?? 1;
+		const speedVideoFilter = buildSpeedVideoFilter(clipSpeed);
+		const speedVideoPart = speedVideoFilter ? `,${speedVideoFilter}` : "";
+		const speedAudioFilter = buildSpeedAudioFilter(clipSpeed);
+		const speedAudioPart = speedAudioFilter ? `,${speedAudioFilter}` : "";
+
+		let vf = `[0:v]trim=start=${clip.inPoint}:end=${clip.outPoint},setpts=PTS-STARTPTS${speedVideoPart},${scaleFilter}`;
 		if (eqFilter) vf += `,${eqFilter}`;
 		if (transformFilter) vf += `,${transformFilter}`;
 
@@ -303,13 +332,13 @@ function buildSingleClipArgs(
 		const isImage = /\.(png|jpe?g|gif|bmp|webp|svg)$/i.test(inputFile);
 		let videoAudioLabel: string;
 		if (isImage) {
-			const duration = clip.outPoint - clip.inPoint;
+			const mediaDuration = (clip.outPoint - clip.inPoint) / clipSpeed;
 			filterParts.push("anullsrc=r=44100:cl=stereo[nullaudio]");
-			filterParts.push(`[nullaudio]atrim=duration=${duration},asetpts=PTS-STARTPTS[vidasrc]`);
+			filterParts.push(`[nullaudio]atrim=duration=${mediaDuration},asetpts=PTS-STARTPTS[vidasrc]`);
 			videoAudioLabel = "[vidasrc]";
 		} else {
 			filterParts.push(
-				`[0:a]atrim=start=${clip.inPoint}:end=${clip.outPoint},asetpts=PTS-STARTPTS[vidasrc]`,
+				`[0:a]atrim=start=${clip.inPoint}:end=${clip.outPoint},asetpts=PTS-STARTPTS${speedAudioPart}[vidasrc]`,
 			);
 			videoAudioLabel = "[vidasrc]";
 		}
@@ -325,6 +354,10 @@ function buildSingleClipArgs(
 	}
 
 	// 오디오 클립 없는 기존 경로
+	const clipSpeed = clip.speed ?? 1;
+	const speedVideoFilter = buildSpeedVideoFilter(clipSpeed);
+	const speedAudioFilter = buildSpeedAudioFilter(clipSpeed);
+
 	const scaleFilter = `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2`;
 	const eqFilter = clip.filter ? buildEqFilterString(clip.filter) : null;
 	const transformFilter = clip.transform
@@ -332,6 +365,7 @@ function buildSingleClipArgs(
 		: null;
 	let vf = eqFilter ? `${scaleFilter},${eqFilter}` : scaleFilter;
 	if (transformFilter) vf = `${vf},${transformFilter}`;
+	if (speedVideoFilter) vf = `${vf},${speedVideoFilter}`;
 
 	// 독립 텍스트 클립 필터 추가
 	if (tracks) {
@@ -341,16 +375,20 @@ function buildSingleClipArgs(
 		}
 	}
 
+	const mediaDuration = (clip.outPoint - clip.inPoint) / clipSpeed;
 	const args = [
 		"-i",
 		inputFile,
 		"-ss",
 		String(clip.inPoint),
 		"-t",
-		String(clip.outPoint - clip.inPoint),
+		String(mediaDuration),
 		"-vf",
 		vf,
 	];
+	if (speedAudioFilter) {
+		args.push("-af", speedAudioFilter);
+	}
 	if (encoder) appendEncoderArgs(args, encoder);
 	return args;
 }
@@ -364,28 +402,27 @@ function buildConcatArgs(
 	encoder?: EncoderOptions,
 ): string[] {
 	const args: string[] = [];
-	const inputIndices = new Map<string, number>();
+	const clipInputIndices = new Map<string, number>();
+	const audioInputIndices = new Map<string, number>();
 	let inputIndex = 0;
 
-	// 비디오 입력 파일 추가 (중복 제거)
+	// 비디오 입력 파일 추가 (클립별 별도 입력 — 동일 에셋 스트림 소진 방지)
 	for (const clip of clips) {
-		if (!inputIndices.has(clip.assetId)) {
-			const file = assetFileMap.get(clip.assetId);
-			if (!file) continue;
-			args.push("-i", file);
-			inputIndices.set(clip.assetId, inputIndex);
-			inputIndex++;
-		}
+		const file = assetFileMap.get(clip.assetId);
+		if (!file) continue;
+		args.push("-i", file);
+		clipInputIndices.set(clip.id, inputIndex);
+		inputIndex++;
 	}
 
-	// 오디오 클립 입력 파일 추가
+	// 오디오 클립 입력 파일 추가 (에셋 기준 중복 제거)
 	const audioClips = tracks ? getSortedAudioClips(tracks) : [];
 	for (const ac of audioClips) {
-		if (!inputIndices.has(ac.assetId)) {
+		if (!audioInputIndices.has(ac.assetId)) {
 			const file = assetFileMap.get(ac.assetId);
 			if (!file) continue;
 			args.push("-i", file);
-			inputIndices.set(ac.assetId, inputIndex);
+			audioInputIndices.set(ac.assetId, inputIndex);
 			inputIndex++;
 		}
 	}
@@ -396,23 +433,28 @@ function buildConcatArgs(
 
 	for (let i = 0; i < clips.length; i++) {
 		const clip = clips[i] as Clip;
-		const idx = inputIndices.get(clip.assetId);
+		const idx = clipInputIndices.get(clip.id);
 		if (idx === undefined) continue;
 
 		const trimStart = clip.inPoint;
 		const trimEnd = clip.outPoint;
+		const clipSpeed = clip.speed ?? 1;
+		const speedVideoPart = buildSpeedVideoFilter(clipSpeed);
+		const speedAudioPart = buildSpeedAudioFilter(clipSpeed);
 		const eqFilter = clip.filter ? buildEqFilterString(clip.filter) : null;
 		const eqPart = eqFilter ? `,${eqFilter}` : "";
 		const transformFilter = clip.transform
 			? buildTransformFilter(clip.transform, width, height)
 			: null;
 		const transformPart = transformFilter ? `,${transformFilter}` : "";
+		const svPart = speedVideoPart ? `,${speedVideoPart}` : "";
+		const saPart = speedAudioPart ? `,${speedAudioPart}` : "";
 
 		filterParts.push(
-			`[${idx}:v]trim=start=${trimStart}:end=${trimEnd},setpts=PTS-STARTPTS,scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2${eqPart}${transformPart}[v${i}]`,
+			`[${idx}:v]trim=start=${trimStart}:end=${trimEnd},setpts=PTS-STARTPTS${svPart},scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2${eqPart}${transformPart}[v${i}]`,
 		);
 		filterParts.push(
-			`[${idx}:a]atrim=start=${trimStart}:end=${trimEnd},asetpts=PTS-STARTPTS[a${i}]`,
+			`[${idx}:a]atrim=start=${trimStart}:end=${trimEnd},asetpts=PTS-STARTPTS${saPart}[a${i}]`,
 		);
 		concatInputs.push(`[v${i}][a${i}]`);
 	}
@@ -437,7 +479,7 @@ function buildConcatArgs(
 
 	// 오디오 믹싱
 	if (audioClips.length > 0) {
-		const audioMix = buildAudioMixFilter(audioClips, inputIndices, concatAudioLabel);
+		const audioMix = buildAudioMixFilter(audioClips, audioInputIndices, concatAudioLabel);
 		filterParts.push(...audioMix.filterParts);
 	}
 
@@ -457,28 +499,27 @@ function buildXfadeArgs(
 	encoder?: EncoderOptions,
 ): string[] {
 	const args: string[] = [];
-	const inputIndices = new Map<string, number>();
+	const clipInputIndices = new Map<string, number>();
+	const audioInputIndices = new Map<string, number>();
 	let inputIndex = 0;
 
-	// 비디오 입력 파일 추가 (중복 제거)
+	// 비디오 입력 파일 추가 (클립별 별도 입력 — 동일 에셋 스트림 소진 방지)
 	for (const clip of clips) {
-		if (!inputIndices.has(clip.assetId)) {
-			const file = assetFileMap.get(clip.assetId);
-			if (!file) continue;
-			args.push("-i", file);
-			inputIndices.set(clip.assetId, inputIndex);
-			inputIndex++;
-		}
+		const file = assetFileMap.get(clip.assetId);
+		if (!file) continue;
+		args.push("-i", file);
+		clipInputIndices.set(clip.id, inputIndex);
+		inputIndex++;
 	}
 
-	// 오디오 클립 입력 파일 추가
+	// 오디오 클립 입력 파일 추가 (에셋 기준 중복 제거)
 	const audioClips = tracks ? getSortedAudioClips(tracks) : [];
 	for (const ac of audioClips) {
-		if (!inputIndices.has(ac.assetId)) {
+		if (!audioInputIndices.has(ac.assetId)) {
 			const file = assetFileMap.get(ac.assetId);
 			if (!file) continue;
 			args.push("-i", file);
-			inputIndices.set(ac.assetId, inputIndex);
+			audioInputIndices.set(ac.assetId, inputIndex);
 			inputIndex++;
 		}
 	}
@@ -488,21 +529,26 @@ function buildXfadeArgs(
 	// 각 클립을 trim + scale
 	for (let i = 0; i < clips.length; i++) {
 		const clip = clips[i] as Clip;
-		const idx = inputIndices.get(clip.assetId);
+		const idx = clipInputIndices.get(clip.id);
 		if (idx === undefined) continue;
 
+		const clipSpeed = clip.speed ?? 1;
+		const speedVideoPart = buildSpeedVideoFilter(clipSpeed);
+		const speedAudioPart = buildSpeedAudioFilter(clipSpeed);
 		const eqFilter = clip.filter ? buildEqFilterString(clip.filter) : null;
 		const eqPart = eqFilter ? `,${eqFilter}` : "";
 		const transformFilter = clip.transform
 			? buildTransformFilter(clip.transform, width, height)
 			: null;
 		const transformPart = transformFilter ? `,${transformFilter}` : "";
+		const svPart = speedVideoPart ? `,${speedVideoPart}` : "";
+		const saPart = speedAudioPart ? `,${speedAudioPart}` : "";
 
 		filterParts.push(
-			`[${idx}:v]trim=start=${clip.inPoint}:end=${clip.outPoint},setpts=PTS-STARTPTS,scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2${eqPart}${transformPart}[v${i}]`,
+			`[${idx}:v]trim=start=${clip.inPoint}:end=${clip.outPoint},setpts=PTS-STARTPTS${svPart},scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2${eqPart}${transformPart}[v${i}]`,
 		);
 		filterParts.push(
-			`[${idx}:a]atrim=start=${clip.inPoint}:end=${clip.outPoint},asetpts=PTS-STARTPTS[a${i}]`,
+			`[${idx}:a]atrim=start=${clip.inPoint}:end=${clip.outPoint},asetpts=PTS-STARTPTS${saPart}[a${i}]`,
 		);
 	}
 
@@ -511,8 +557,9 @@ function buildXfadeArgs(
 	const needsTextChain = textFilters.length > 0;
 	const hasAudioClips = audioClips.length > 0;
 
-	// xfade / acrossfade 체인 구성
-	let cumulativeDuration = clips[0] ? clips[0].outPoint - clips[0].inPoint : 0;
+	// xfade / acrossfade 체인 구성 (속도 반영된 미디어 길이 사용)
+	const clip0Speed = clips[0]?.speed ?? 1;
+	let cumulativeDuration = clips[0] ? (clips[0].outPoint - clips[0].inPoint) / clip0Speed : 0;
 	let lastVideoLabel = "[v0]";
 	let lastAudioLabel = "[a0]";
 
@@ -535,7 +582,8 @@ function buildXfadeArgs(
 			lastVideoLabel = vOutLabel;
 			lastAudioLabel = aOutLabel;
 			const xClip = clips[i];
-			cumulativeDuration = offset + (xClip ? xClip.outPoint - xClip.inPoint : 0);
+			const xSpeed = xClip?.speed ?? 1;
+			cumulativeDuration = offset + (xClip ? (xClip.outPoint - xClip.inPoint) / xSpeed : 0);
 		} else {
 			// 트랜지션 없는 클립 간: concat 사용
 			const vOutLabel = isLast ? (needsTextChain ? "[vcatout]" : "[outv]") : `[vcat${i}]`;
@@ -547,7 +595,8 @@ function buildXfadeArgs(
 			lastVideoLabel = vOutLabel;
 			lastAudioLabel = aOutLabel;
 			const cClip = clips[i];
-			cumulativeDuration += cClip ? cClip.outPoint - cClip.inPoint : 0;
+			const cSpeed = cClip?.speed ?? 1;
+			cumulativeDuration += cClip ? (cClip.outPoint - cClip.inPoint) / cSpeed : 0;
 		}
 	}
 
@@ -563,7 +612,7 @@ function buildXfadeArgs(
 
 	// 오디오 믹싱
 	if (hasAudioClips) {
-		const audioMix = buildAudioMixFilter(audioClips, inputIndices, "[xfadeaudio]");
+		const audioMix = buildAudioMixFilter(audioClips, audioInputIndices, "[xfadeaudio]");
 		filterParts.push(...audioMix.filterParts);
 	}
 
